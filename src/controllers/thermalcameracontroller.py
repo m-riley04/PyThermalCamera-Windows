@@ -65,7 +65,8 @@ class ThermalCameraController:
         print(f'{KEY_CYCLE_THROUGH_COLORMAPS} : Cycle through ColorMaps')
         print(f'{KEY_INVERT} : Invert ColorMap')
         print(f'{KEY_TOGGLE_HUD} : Toggle HUD')
- 
+        print(f'{KEY_QUIT} : Quit')
+
     @staticmethod
     def printCredits():
         """
