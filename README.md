@@ -14,7 +14,7 @@ This is a fork of the now-outdated (June 2023) Python script to display the temp
 - [TODO](#todo)
 
 ## Introduction
-No commands are sent the the camera. Instead, we take the raw video feed, do some OpenCV processing, and display a nice heatmap along with relevant temperature points highlighted.
+No commands are sent to the camera. Instead, we take the raw video feed, do some OpenCV processing, and display a nice heatmap along with relevant temperature points highlighted.
 
 ![Screenshot](media/TC00120230701-131032.png)
 

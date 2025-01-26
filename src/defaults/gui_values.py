@@ -5,7 +5,7 @@ WINDOW_TITLE: str = "Thermal Camera"
 FULLSCREEN: bool = False
 HUD_VISIBLE: bool = True
 LAST_SNAPSHOT_TIME: str = ""
-RECORDING_START_TIME: str = ""
+RECORDING_START_TIME: float = 0
 RECORDING_DURATION: str = "00:00:00"
 FONT: int = FONT_HERSHEY_SIMPLEX
 # Scale
