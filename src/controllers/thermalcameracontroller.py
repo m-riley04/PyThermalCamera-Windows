@@ -206,51 +206,30 @@ class ThermalCameraController:
 
     def calculateRawTemperature(self, thdata):
         """
-        Calculates the raw temperature of the frame.
+        Calculates the raw temperature of the center of the frame.
         """
-        hi = int(thdata[96][128][0])
-        lo = int(thdata[96][128][1])
-        lo = lo * 256
-        return hi+lo
+        return thdata[self._height // 2][self._width // 2]
 
     def calculateAverageTemperature(self, thdata):
         """
         Calculates the average temperature of the frame.
         """
-        loavg = int(thdata[...,1].mean())
-        hiavg = int(thdata[...,0].mean())
-        loavg = loavg * 256
-        return round(self.normalizeTemperature(loavg+hiavg), TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(thdata.mean()), TEMPERATURE_SIG_DIGITS)
 
     def calculateMinimumTemperature(self, thdata):
         """
         Calculates the minimum temperature of the frame.
         """
-        # Find the min temperature in the frame
-        lomin = int(thdata[...,1].min())
-        posmin = int(thdata[...,1].argmin())
-        
-        # Since argmax returns a linear index, convert back to row and col
-        self._lcol, self._lrow = divmod(posmin, self._width)
-        himin = int(thdata[self._lcol][self._lrow][0])
-        lomin = lomin * 256
-        
-        return round(self.normalizeTemperature(himin+lomin), TEMPERATURE_SIG_DIGITS)
+        self._lcol, self._lrow = np.unravel_index(np.argmin(thdata), thdata.shape)       
+        return round(self.normalizeTemperature(thdata[self._lcol][self._lrow]), TEMPERATURE_SIG_DIGITS)
 
     def calculateMaximumTemperature(self, thdata):
         """
         Calculates the maximum temperature of the frame.
         """
         # Find the max temperature in the frame
-        lomax = int(thdata[...,1].max())
-        posmax = int(thdata[...,1].argmax())
-
-        # Since argmax returns a linear index, convert back to row and col
-        self._mcol, self._mrow = divmod(posmax, self._width)
-        himax = int(thdata[self._mcol][self._mrow][0])
-        lomax = lomax * 256
-        
-        return round(self.normalizeTemperature(himax+lomax), TEMPERATURE_SIG_DIGITS)
+        self._mcol, self._mrow = np.unravel_index(np.argmax(thdata), thdata.shape)       
+        return round(self.normalizeTemperature(thdata[self._mcol][self._mrow]), TEMPERATURE_SIG_DIGITS)
 
     def run(self):
         """
