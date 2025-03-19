@@ -241,7 +241,7 @@ class ThermalCameraController:
         """
         disable automatic YUY2 -> RGB conversion in OpenCV
         """
-        cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        self._cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
 
         # Start main runtime loop
         while(self._cap.isOpened()):
