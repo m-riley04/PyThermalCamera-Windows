@@ -272,6 +272,13 @@ class ThermalCameraController:
                 # We use frame[0] since on Windows this is returned as a 2D array with size [1][<number of pixels>]
                 # Other OS are untested
                 imdata, thdata = np.array_split(frame[0], 2)
+
+                # First convert the image to YUV
+                yuv_pic = np.frombuffer(imdata, dtype=np.uint8).reshape((self._height, self._width, 2))
+                # Next convert to RGB
+                rgb_pic = cv2.cvtColor(yuv_pic, cv2.COLOR_YUV2RGB_YUY2)
+                # Assemble the thermal data
+                thm_pic = np.frombuffer(thdata, dtype=np.uint16).reshape((self._height, self._width))
                 
                 # Now parse the data from the bottom frame and convert to temp!
                 # Grab data from the center pixel...
@@ -289,7 +296,7 @@ class ThermalCameraController:
                 
                 # Draw GUI elements
                 heatmap = self._guiController.drawGUI(
-                    imdata=imdata,
+                    imdata=rgb_pic,
                     temp=self._temp,
                     maxTemp=self._maxTemp,
                     minTemp=self._minTemp,
