@@ -260,17 +260,18 @@ class ThermalCameraController:
         self._cap = cv2.VideoCapture(self._deviceIndex)
 
         """
-        MAJOR CHANGE: Do NOT convert to RGB. For some reason, this breaks the frame temperature data on TS001.
-        Originally, it was the opposite: https://stackoverflow.com/questions/63108721/opencv-setting-videocap-property-to-cap-prop-convert-rgb-generates-weird-boolean
+        disable automatic YUY2 -> RGB conversion in OpenCV
         """
-        #cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
 
         # Start main runtime loop
         while(self._cap.isOpened()):
             ret, frame = self._cap.read()
             if ret == True:
                 # Split frame into two parts: image data and thermal data
-                imdata, thdata = np.array_split(frame, 2)
+                # We use frame[0] since on Windows this is returned as a 2D array with size [1][<number of pixels>]
+                # Other OS are untested
+                imdata, thdata = np.array_split(frame[0], 2)
                 
                 # Now parse the data from the bottom frame and convert to temp!
                 # Grab data from the center pixel...
