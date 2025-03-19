@@ -261,17 +261,17 @@ class ThermalCameraController:
                 
                 # Now parse the data from the bottom frame and convert to temp!
                 # Grab data from the center pixel...
-                self._rawTemp = self.calculateRawTemperature(thdata)
-                self._temp = self.calculateTemperature(thdata)
+                self._rawTemp = self.calculateRawTemperature(thm_pic)
+                self._temp = self.calculateTemperature(thm_pic)
 
                 # Calculate minimum temperature
-                self._minTemp = self.calculateMinimumTemperature(thdata)
+                self._minTemp = self.calculateMinimumTemperature(thm_pic)
                 
                 # Calculate maximum temperature
-                self._maxTemp = self.calculateMaximumTemperature(thdata)
+                self._maxTemp = self.calculateMaximumTemperature(thm_pic)
 
                 # Find the average temperature in the frame
-                self._avgTemp = self.calculateAverageTemperature(thdata)
+                self._avgTemp = self.calculateAverageTemperature(thm_pic)
                 
                 # Draw GUI elements
                 heatmap = self._guiController.drawGUI(
