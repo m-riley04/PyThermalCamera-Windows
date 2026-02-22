@@ -57,6 +57,57 @@ class ThermalCameraController:
         self._videoOut = None
         self._didLogFrameLayoutWarning = False
         self._captureBackend = None
+        self._thermalByteOrder: str | None = None  # "lsb0" (byte0 is LSB) or "lsb1" (byte1 is LSB)
+        self._didLogThermalByteOrder = False
+
+    def _rawFromBytes(self, byte0: int, byte1: int) -> int:
+        """Combine two uint8 bytes into a 16-bit raw temperature sample.
+
+        The original TC001 script treats channel 0 as the LSB and channel 1 as the MSB.
+        Some Windows capture paths/backends can swap this ordering, so we allow autodetection.
+        """
+        if self._thermalByteOrder == "lsb1":
+            return int(byte1) + (int(byte0) << 8)
+        return int(byte0) + (int(byte1) << 8)
+
+    def _maybeDetectThermalByteOrder(self, thdata: NDArray) -> None:
+        """Detect swapped byte order once using a plausibility check.
+
+        We choose the ordering whose *center pixel* temperature lands in a reasonable range.
+        If both are unreasonable (e.g. synthetic test data), we keep the default.
+        """
+
+        if self._thermalByteOrder is not None:
+            return
+
+        if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
+            self._thermalByteOrder = "lsb0"
+            return
+
+        centerRow = thdata.shape[0] // 2
+        centerCol = thdata.shape[1] // 2
+        b0 = int(thdata[centerRow, centerCol, 0])
+        b1 = int(thdata[centerRow, centerCol, 1])
+
+        raw_lsb0 = int(b0) + (int(b1) << 8)
+        raw_lsb1 = int(b1) + (int(b0) << 8)
+        t0 = float(self.normalizeTemperature(raw_lsb0))
+        t1 = float(self.normalizeTemperature(raw_lsb1))
+
+        def is_plausible_celsius(temp: float) -> bool:
+            return -40.0 <= temp <= 200.0
+
+        if is_plausible_celsius(t1) and not is_plausible_celsius(t0):
+            self._thermalByteOrder = "lsb1"
+        else:
+            self._thermalByteOrder = "lsb0"
+
+        if self._thermalByteOrder == "lsb1" and not self._didLogThermalByteOrder:
+            print(
+                "Detected swapped thermal byte order (Windows capture). "
+                "Using channel0 as MSB / channel1 as LSB for temperature decode."
+            )
+            self._didLogThermalByteOrder = True
     
     @staticmethod
     def printBindings():
@@ -233,21 +284,26 @@ class ThermalCameraController:
         if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
             return TEMPERATURE_RAW
 
+        self._maybeDetectThermalByteOrder(thdata)
+
         centerRow = thdata.shape[0] // 2
         centerCol = thdata.shape[1] // 2
-        hi = int(thdata[centerRow][centerCol][0])
-        lo = int(thdata[centerRow][centerCol][1])
-        lo = lo * 256
-        return hi+lo
+        b0 = int(thdata[centerRow, centerCol, 0])
+        b1 = int(thdata[centerRow, centerCol, 1])
+        return self._rawFromBytes(b0, b1)
 
     def calculateAverageTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the average temperature of the frame.
         """
-        loavg = int(thdata[...,1].mean())
-        hiavg = int(thdata[...,0].mean())
-        loavg = loavg * 256
-        return round(self.normalizeTemperature(loavg+hiavg), TEMPERATURE_SIG_DIGITS)
+        if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
+            return TEMPERATURE_AVG
+
+        self._maybeDetectThermalByteOrder(thdata)
+        b0avg = int(thdata[..., 0].mean())
+        b1avg = int(thdata[..., 1].mean())
+        raw = self._rawFromBytes(b0avg, b1avg)
+        return round(self.normalizeTemperature(raw), TEMPERATURE_SIG_DIGITS)
 
     def calculateMinimumTemperature(self, thdata: NDArray) -> float:
         """
@@ -260,10 +316,12 @@ class ThermalCameraController:
         # Since argmax returns a linear index, convert back to row and col
         width = thdata.shape[1]
         self._lcol, self._lrow = divmod(posmin, width)
-        himin = int(thdata[self._lcol][self._lrow][0])
-        lomin = lomin * 256
-        
-        return round(self.normalizeTemperature(himin+lomin), TEMPERATURE_SIG_DIGITS)
+        self._maybeDetectThermalByteOrder(thdata)
+        b0 = int(thdata[self._lcol, self._lrow, 0])
+        b1 = int(thdata[self._lcol, self._lrow, 1])
+        raw = self._rawFromBytes(b0, b1)
+
+        return round(self.normalizeTemperature(raw), TEMPERATURE_SIG_DIGITS)
 
     def calculateMaximumTemperature(self, thdata: NDArray) -> float:
         """
@@ -276,12 +334,14 @@ class ThermalCameraController:
         # Since argmax returns a linear index, convert back to row and col
         width = thdata.shape[1]
         self._mcol, self._mrow = divmod(posmax, width)
-        himax = int(thdata[self._mcol][self._mrow][0])
-        lomax = lomax * 256
-        
-        return round(self.normalizeTemperature(himax+lomax), TEMPERATURE_SIG_DIGITS)
+        self._maybeDetectThermalByteOrder(thdata)
+        b0 = int(thdata[self._mcol, self._mrow, 0])
+        b1 = int(thdata[self._mcol, self._mrow, 1])
+        raw = self._rawFromBytes(b0, b1)
 
-    def _splitFrameData(self, frame: NDArray) -> tuple[NDArray | None, NDArray | None]:
+        return round(self.normalizeTemperature(raw), TEMPERATURE_SIG_DIGITS)
+
+    def _splitFrameData(self, frame: NDArray, *, logWarnings: bool = True) -> tuple[NDArray | None, NDArray | None]:
         """
         Splits frame into visible-image and thermal-data halves, handling backend-specific layouts.
         """
@@ -289,6 +349,18 @@ class ThermalCameraController:
             return None, None
 
         parsedFrame = frame
+
+        # If OpenCV has already converted to BGR/RGB (3 channels) we can no longer recover thermal bytes.
+        # Fail fast with a clear warning rather than producing nonsense temperatures.
+        if parsedFrame.ndim == 3 and parsedFrame.shape[2] != 2:
+            if logWarnings and not self._didLogFrameLayoutWarning:
+                print(
+                    "OpenCV returned a converted frame (not raw YUY2). "
+                    f"shape={parsedFrame.shape}, dtype={parsedFrame.dtype}. "
+                    "Thermal bytes are not available; try a different backend (DSHOW vs MSMF) or disable RGB conversion."
+                )
+                self._didLogFrameLayoutWarning = True
+            return None, None
 
         totalRows = self._height * 2
 
@@ -312,27 +384,72 @@ class ThermalCameraController:
             imageData, thermalData = np.array_split(parsedFrame, 2, axis=0)
             return imageData, thermalData
 
-        if not self._didLogFrameLayoutWarning:
+        if logWarnings and not self._didLogFrameLayoutWarning:
             print(f"Unsupported frame layout from OpenCV: shape={parsedFrame.shape}, dtype={parsedFrame.dtype}")
             self._didLogFrameLayoutWarning = True
 
         return None, None
 
-    def _openCapture(self) -> cv2.VideoCapture:
-        """
-        Opens the video capture with a backend that matches Windows device indexing.
-        """
-        if sys.platform.startswith("win"):
-            for backend in (cv2.CAP_DSHOW, cv2.CAP_MSMF):
-                cap = cv2.VideoCapture(self._deviceIndex, backend)
-                if cap is not None and cap.isOpened():
-                    self._captureBackend = backend
-                    return cap
+    def _configureCapture(self, cap: cv2.VideoCapture) -> None:
+        """Apply capture properties required to preserve thermal bytes."""
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUY2'))
+        # Keep raw bytes; many platforms treat any non-zero as True.
+        cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height * 2)
+        cap.set(cv2.CAP_PROP_FPS, self._fps)
 
-        cap = cv2.VideoCapture(self._deviceIndex)
-        if cap is not None and cap.isOpened():
-            self._captureBackend = cv2.CAP_ANY
-        return cap
+    def _openCapture(self) -> cv2.VideoCapture:
+        """Opens the video capture and verifies we can read raw (2-channel) frames.
+
+        On Windows especially, some backends ignore CAP_PROP_CONVERT_RGB and return 3-channel BGR,
+        which destroys the thermal data. We probe a few backends and only accept one that yields
+        a splittable frame with a 2-channel layout.
+        """
+        backends: list[int]
+        if sys.platform.startswith("win"):
+            backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
+        else:
+            backends = [cv2.CAP_ANY]
+
+        lastOpenedCap: cv2.VideoCapture | None = None
+        lastBackend: int | None = None
+
+        for backend in backends:
+            cap = cv2.VideoCapture(self._deviceIndex, backend)
+            if cap is None or not cap.isOpened():
+                continue
+
+            lastOpenedCap = cap
+            lastBackend = backend
+
+            self._configureCapture(cap)
+
+            # Prime the capture and validate the layout.
+            ok = False
+            for _ in range(5):
+                ret, frame = cap.read()
+                if not ret:
+                    continue
+                imdata, thdata = self._splitFrameData(frame, logWarnings=False)
+                if imdata is not None and thdata is not None and thdata.ndim == 3 and thdata.shape[2] == 2:
+                    ok = True
+                    break
+
+            if ok:
+                self._captureBackend = backend
+                return cap
+
+            cap.release()
+
+        # If we got here, nothing produced a usable raw frame.
+        if lastOpenedCap is not None:
+            lastOpenedCap.release()
+        raise RuntimeError(
+            f"Opened device index {self._deviceIndex} but could not obtain a raw YUY2 frame (2-channel). "
+            f"Tried backends: {backends}. "
+            "This usually means OpenCV is converting to BGR/MJPG, which breaks thermal temperature decoding."
+        )
 
     def run(self):
         """
@@ -342,11 +459,8 @@ class ThermalCameraController:
         self._cap = self._openCapture()
         if self._cap is None or not self._cap.isOpened():
             raise RuntimeError(f"Failed to open video device index {self._deviceIndex}")
-        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUY2'))
-        self._cap.set(cv2.CAP_PROP_CONVERT_RGB, 0.0)
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height * 2)
-        self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+        # Ensure our settings are applied even if the backend changes behavior after opening.
+        self._configureCapture(self._cap)
 
         """
         MAJOR CHANGE: Do NOT convert to RGB. For some reason, this breaks the frame temperature data on TS001.
