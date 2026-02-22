@@ -120,6 +120,7 @@ These keybindings can be changed easily in the `defaults/keybinds.py` file.
 - m : Cycle through colormaps
 - i : Invert the colormap
 - h : Toggle HUD
+- u : Toggle Celsius/Fahrenheit
 - q : Quit the program
 
 ## TODO

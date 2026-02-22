@@ -12,7 +12,7 @@ from controllers.thermalcameracontroller import ThermalCameraController
 
 # Initialize argument parsing
 parser = ArgumentParser()
-parser.add_argument("--device", type=int, default=VIDEO_DEVICE_INDEX, help=f"VideoDevice index. Default is 0.")
+parser.add_argument("--device", type=int, default=VIDEO_DEVICE_INDEX, help=f"VideoDevice index. Default is {VIDEO_DEVICE_INDEX}.")
 args = parser.parse_args()
 
 def main():

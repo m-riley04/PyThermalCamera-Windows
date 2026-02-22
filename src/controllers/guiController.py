@@ -13,7 +13,8 @@ class GuiController:
                  colormap: Colormap = COLORMAP, 
                  contrast: float = CONTRAST, 
                  blurRadius: int = BLUR_RADIUS, 
-                 threshold: int = THRESHOLD):
+                 threshold: int = THRESHOLD,
+                 temperatureUnitSymbol: str = "C"):
         # Passed parameters
         self.windowTitle = windowTitle
         self.width = width
@@ -23,6 +24,7 @@ class GuiController:
         self.contrast = contrast
         self.blurRadius = blurRadius
         self.threshold = threshold
+        self.temperatureUnitSymbol = temperatureUnitSymbol
         
         # Calculated properties
         self.scaledWidth = int(self.width*self.scale)
@@ -52,7 +54,7 @@ class GuiController:
         self.recordingDuration = (time.time() - self.recordingStartTime)
         self.recordingDuration = time.strftime("%H:%M:%S", time.gmtime(self.recordingDuration)) 
         
-    def drawGUI(self, imdata, temp, averageTemp, maxTemp, minTemp, isRecording, mrow, mcol, lrow, lcol):
+    def drawGUI(self, imdata, temp, averageTemp, maxTemp, minTemp, labelThreshold, isRecording, mrow, mcol, lrow, lcol):
         """
         Draws the GUI elements on the thermal image.
         """
@@ -74,14 +76,14 @@ class GuiController:
 
         # Draw HUD
         if self.isHudVisible == True:
-            img = self.drawHUD(img, averageTemp, isRecording)
+            img = self.drawHUD(img, averageTemp, labelThreshold, isRecording)
         
         # Display floating max temp
-        if maxTemp > averageTemp + self.threshold:
+        if maxTemp > averageTemp + labelThreshold:
             img = self.drawMaxTemp(img, mrow, mcol, maxTemp)
 
         # Display floating min temp
-        if minTemp < averageTemp - self.threshold:
+        if minTemp < averageTemp - labelThreshold:
             img = self.drawMinTemp(img, lrow, lcol, minTemp)
             
         # Update recording stats
@@ -96,7 +98,7 @@ class GuiController:
         """
         cv2.putText(
             img,
-            str(temp)+' C',
+            str(temp)+' '+self.temperatureUnitSymbol,
             (int(self.scaledWidth/2)+10, int(self.scaledHeight/2)-10),
             self._font,
             0.45,
@@ -105,7 +107,7 @@ class GuiController:
             cv2.LINE_AA)
         cv2.putText(
             img,
-            str(temp)+' C',
+            str(temp)+' '+self.temperatureUnitSymbol,
             (int(self.scaledWidth/2)+10, int(self.scaledHeight/2)-10),
             self._font,
             0.45,
@@ -147,7 +149,7 @@ class GuiController:
         
         return img
 
-    def drawHUD(self, img, averageTemp, isRecording):
+    def drawHUD(self, img, averageTemp, labelThreshold, isRecording):
         """
         Draws the HUD onto the image.
         """
@@ -162,7 +164,7 @@ class GuiController:
         # Put text in the box
         cv2.putText(
             img,
-            'Avg Temp: '+str(averageTemp)+' C',
+            'Avg Temp: '+str(averageTemp)+' '+self.temperatureUnitSymbol,
             (10, 14),
             self._font,
             0.4,
@@ -172,7 +174,7 @@ class GuiController:
 
         cv2.putText(
             img,
-            'Label Threshold: '+str(self.threshold)+' C',
+            'Label Threshold: '+str(labelThreshold)+' '+self.temperatureUnitSymbol,
             (10, 28),
             self._font,
             0.4,
@@ -284,7 +286,7 @@ class GuiController:
         # Draw max temp label(s)
         cv2.putText(
             img=img,
-            text=str(maxTemp)+' C', 
+            text=str(maxTemp)+' '+self.temperatureUnitSymbol, 
             org=((row*self.scale)+10, (col*self.scale)+5),
             fontFace=self._font, 
             fontScale=0.45,
@@ -294,7 +296,7 @@ class GuiController:
         
         cv2.putText(
             img=img,
-            text=str(maxTemp)+' C',
+            text=str(maxTemp)+' '+self.temperatureUnitSymbol,
             org=((row*self.scale)+10, (col*self.scale)+5),
             fontFace=self._font,
             fontScale=0.45,
@@ -315,7 +317,7 @@ class GuiController:
         # Draw min temp label(s)
         cv2.putText(
             img,
-            str(minTemp)+' C',
+            str(minTemp)+' '+self.temperatureUnitSymbol,
             ((row*self.scale)+10,
              (col*self.scale)+5),
             self._font,
@@ -325,7 +327,7 @@ class GuiController:
             cv2.LINE_AA)
         cv2.putText(
             img,
-            str(minTemp)+' C', 
+            str(minTemp)+' '+self.temperatureUnitSymbol, 
             ((row*self.scale)+10,
              (col*self.scale)+5),
             self._font,
@@ -371,6 +373,12 @@ class GuiController:
         """
         Applies effects (contrast, blur, upscaling, interpolation, etc.) to the image data.
         """
+        # Convert thermal camera YUYV image data into BGR for display.
+        try:
+            imdata = cv2.cvtColor(imdata, cv2.COLOR_YUV2BGR_YUYV)
+        except cv2.error:
+            pass
+
         # Contrast
         img = cv2.convertScaleAbs(imdata, alpha=self.contrast)
         

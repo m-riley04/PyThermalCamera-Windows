@@ -1,4 +1,4 @@
-import cv2, time, os
+import cv2, time, os, sys
 import numpy as np
 from numpy.typing import NDArray
 
@@ -7,6 +7,8 @@ from defaults.keybinds import *
 
 from enums.ColormapEnum import Colormap
 from controllers.guiController import GuiController
+from enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
+from helpers.conversions import convertTemperatureDeltaForDisplay, convertTemperatureForDisplay
 
 class ThermalCameraController:
     def __init__(self, 
@@ -15,13 +17,16 @@ class ThermalCameraController:
                  height: int = SENSOR_HEIGHT, 
                  fps: int = DEVICE_FPS, 
                  deviceName: str = DEVICE_NAME, 
-                 mediaOutputPath: str = MEDIA_OUTPUT_PATH):
+                 mediaOutputPath: str = MEDIA_OUTPUT_PATH,
+                 temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS):
         # Parameters init
         self._deviceIndex: int = deviceIndex
         self._deviceName: str = deviceName
         self._width: int = width
         self._height: int = height
         self._fps: int = fps
+        self._temperatureUnit: TemperatureUnit = temperatureUnit
+        self._temperatureUnitSymbol: str = getSymbolFromTempUnit(self._temperatureUnit)
 
         # Calculated values init
         self._rawTemp = TEMPERATURE_RAW
@@ -44,11 +49,14 @@ class ThermalCameraController:
         # GUI Init
         self._guiController = GuiController(
             width=self._width,
-            height=self._height)
+            height=self._height,
+            temperatureUnitSymbol=self._temperatureUnitSymbol)
         
         # OpenCV init
         self._cap = None
         self._videoOut = None
+        self._didLogFrameLayoutWarning = False
+        self._captureBackend = None
     
     @staticmethod
     def printBindings():
@@ -66,6 +74,8 @@ class ThermalCameraController:
         print(f'{KEY_CYCLE_THROUGH_COLORMAPS} : Cycle through ColorMaps')
         print(f'{KEY_INVERT} : Invert ColorMap')
         print(f'{KEY_TOGGLE_HUD} : Toggle HUD')
+        print(f'{KEY_TOGGLE_TEMP_UNIT} : Toggle Celsius/Fahrenheit')
+
  
     @staticmethod
     def printCredits():
@@ -145,6 +155,17 @@ class ThermalCameraController:
             elif self._guiController.isHudVisible == False:
                 self._guiController.isHudVisible = HUD_VISIBLE
 
+        if keyPress == ord(KEY_TOGGLE_TEMP_UNIT): # Toggle temperature unit
+            if self._temperatureUnit == TemperatureUnit.CELSIUS:
+                self._temperatureUnit = TemperatureUnit.FAHRENHEIT
+            elif self._temperatureUnit == TemperatureUnit.FAHRENHEIT:
+                self._temperatureUnit = TemperatureUnit.KELVIN
+            else:
+                self._temperatureUnit = TemperatureUnit.CELSIUS
+
+            self._temperatureUnitSymbol = getSymbolFromTempUnit(self._temperatureUnit)
+            self._guiController.temperatureUnitSymbol = self._temperatureUnitSymbol
+
         ### COLOR MAPS
         if keyPress == ord(KEY_CYCLE_THROUGH_COLORMAPS): # Cycle through color maps
             if self._guiController.colormap.value + 1 > Colormap.INV_RAINBOW.value:
@@ -209,9 +230,13 @@ class ThermalCameraController:
         """
         Calculates the raw temperature of the frame.
         """
-        print(f"Shape of main thdata: {thdata.shape}")
-        hi = int(thdata[96][128][0])
-        lo = int(thdata[96][128][1])
+        if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
+            return TEMPERATURE_RAW
+
+        centerRow = thdata.shape[0] // 2
+        centerCol = thdata.shape[1] // 2
+        hi = int(thdata[centerRow][centerCol][0])
+        lo = int(thdata[centerRow][centerCol][1])
         lo = lo * 256
         return hi+lo
 
@@ -233,7 +258,8 @@ class ThermalCameraController:
         posmin = int(thdata[...,1].argmin())
         
         # Since argmax returns a linear index, convert back to row and col
-        self._lcol, self._lrow = divmod(posmin, self._width)
+        width = thdata.shape[1]
+        self._lcol, self._lrow = divmod(posmin, width)
         himin = int(thdata[self._lcol][self._lrow][0])
         lomin = lomin * 256
         
@@ -248,18 +274,79 @@ class ThermalCameraController:
         posmax = int(thdata[...,1].argmax())
 
         # Since argmax returns a linear index, convert back to row and col
-        self._mcol, self._mrow = divmod(posmax, self._width)
+        width = thdata.shape[1]
+        self._mcol, self._mrow = divmod(posmax, width)
         himax = int(thdata[self._mcol][self._mrow][0])
         lomax = lomax * 256
         
         return round(self.normalizeTemperature(himax+lomax), TEMPERATURE_SIG_DIGITS)
+
+    def _splitFrameData(self, frame: NDArray) -> tuple[NDArray | None, NDArray | None]:
+        """
+        Splits frame into visible-image and thermal-data halves, handling backend-specific layouts.
+        """
+        if frame is None or frame.size == 0:
+            return None, None
+
+        parsedFrame = frame
+
+        totalRows = self._height * 2
+
+        # Some backends return flattened buffers (often with padded row stride).
+        if parsedFrame.ndim == 2:
+            flattened = parsedFrame.reshape(-1)
+            if flattened.size % totalRows == 0:
+                bytesPerRow = flattened.size // totalRows
+                if bytesPerRow % 2 == 0:
+                    pixelsPerRow = bytesPerRow // 2
+                    if pixelsPerRow >= self._width:
+                        parsedFrame = flattened.reshape((totalRows, pixelsPerRow, 2))
+                        parsedFrame = parsedFrame[:, :self._width, :]
+
+        if parsedFrame.ndim == 3 and parsedFrame.shape[0] >= totalRows:
+            imageData = parsedFrame[:self._height, :, :]
+            thermalData = parsedFrame[self._height:self._height * 2, :, :]
+            return imageData, thermalData
+
+        if parsedFrame.ndim == 3 and parsedFrame.shape[0] >= 2:
+            imageData, thermalData = np.array_split(parsedFrame, 2, axis=0)
+            return imageData, thermalData
+
+        if not self._didLogFrameLayoutWarning:
+            print(f"Unsupported frame layout from OpenCV: shape={parsedFrame.shape}, dtype={parsedFrame.dtype}")
+            self._didLogFrameLayoutWarning = True
+
+        return None, None
+
+    def _openCapture(self) -> cv2.VideoCapture:
+        """
+        Opens the video capture with a backend that matches Windows device indexing.
+        """
+        if sys.platform.startswith("win"):
+            for backend in (cv2.CAP_DSHOW, cv2.CAP_MSMF):
+                cap = cv2.VideoCapture(self._deviceIndex, backend)
+                if cap is not None and cap.isOpened():
+                    self._captureBackend = backend
+                    return cap
+
+        cap = cv2.VideoCapture(self._deviceIndex)
+        if cap is not None and cap.isOpened():
+            self._captureBackend = cv2.CAP_ANY
+        return cap
 
     def run(self):
         """
         Runs the main runtime loop for the program.
         """
         # Initialize video
-        self._cap = cv2.VideoCapture(self._deviceIndex)
+        self._cap = self._openCapture()
+        if self._cap is None or not self._cap.isOpened():
+            raise RuntimeError(f"Failed to open video device index {self._deviceIndex}")
+        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUY2'))
+        self._cap.set(cv2.CAP_PROP_CONVERT_RGB, 0.0)
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height * 2)
+        self._cap.set(cv2.CAP_PROP_FPS, self._fps)
 
         """
         MAJOR CHANGE: Do NOT convert to RGB. For some reason, this breaks the frame temperature data on TS001.
@@ -272,7 +359,15 @@ class ThermalCameraController:
             ret, frame = self._cap.read()
             if ret == True:
                 # Split frame into two parts: image data and thermal data
-                imdata, thdata = np.array_split(frame, 2)
+                imdata, thdata = self._splitFrameData(frame)
+                if imdata is None or thdata is None or thdata.size == 0:
+                    if not self._didLogFrameLayoutWarning:
+                        print(
+                            "Failed to split frame data into image and thermal components. "
+                            f"Frame shape: {frame.shape}, imdata shape: {imdata.shape if imdata is not None else 'None'}, "
+                            f"thdata shape: {thdata.shape if thdata is not None else 'None'}")
+                        self._didLogFrameLayoutWarning = True
+                    continue
                 
                 # Now parse the data from the bottom frame and convert to temp!
                 # Grab data from the center pixel...
@@ -287,14 +382,21 @@ class ThermalCameraController:
 
                 # Find the average temperature in the frame
                 self._avgTemp = self.calculateAverageTemperature(thdata)
-                
+
+                displayTemp = convertTemperatureForDisplay(self._temp, self._temperatureUnit)
+                displayMinTemp = convertTemperatureForDisplay(self._minTemp, self._temperatureUnit)
+                displayMaxTemp = convertTemperatureForDisplay(self._maxTemp, self._temperatureUnit)
+                displayAvgTemp = convertTemperatureForDisplay(self._avgTemp, self._temperatureUnit)
+                displayThreshold = convertTemperatureDeltaForDisplay(self._guiController.threshold, self._temperatureUnit)
+
                 # Draw GUI elements
                 heatmap = self._guiController.drawGUI(
                     imdata=imdata,
-                    temp=self._temp,
-                    maxTemp=self._maxTemp,
-                    minTemp=self._minTemp,
-                    averageTemp=self._avgTemp,
+                    temp=displayTemp,
+                    maxTemp=displayMaxTemp,
+                    minTemp=displayMinTemp,
+                    averageTemp=displayAvgTemp,
+                    labelThreshold=displayThreshold,
                     isRecording=self._isRecording,
                     mcol=self._mcol,
                     mrow=self._mrow,
