@@ -93,6 +93,14 @@ There are also optional flags/arguments that you can pass:
 
 - `--device [device_index]`: specifies the device to use based on it's index
 
+### Running Calculation Tests
+
+To run the temperature-calculation test suite:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
 ### Basic Sandbox Program
 
 `tc001-RAW.py`: Just demonstrates how to grab raw frames from the Thermal Camera, a starting point if you want to code your own app ***(currently untouched from the fork)***
