@@ -13,3 +13,5 @@ SCALE: int = 3
 SCALE_MAX: int = 5
 SCALE_MIN: int = 1
 SCALE_INCREMENT: int = 1
+# Delays
+KEY_PRESS_DELAY: int = 1

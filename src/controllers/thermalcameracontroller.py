@@ -1,5 +1,6 @@
 import cv2, time, os
 import numpy as np
+from numpy.typing import NDArray
 
 from defaults.values import *
 from defaults.keybinds import *
@@ -197,23 +198,24 @@ class ThermalCameraController:
         """
         return (rawTemp/d) - c
 
-    def calculateTemperature(self, thdata):
+    def calculateTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the (normalized) temperature of the frame.
         """
         raw = self.calculateRawTemperature(thdata)
         return round(self.normalizeTemperature(raw), TEMPERATURE_SIG_DIGITS)
 
-    def calculateRawTemperature(self, thdata):
+    def calculateRawTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the raw temperature of the frame.
         """
+        print(f"Shape of main thdata: {thdata.shape}")
         hi = int(thdata[96][128][0])
         lo = int(thdata[96][128][1])
         lo = lo * 256
         return hi+lo
 
-    def calculateAverageTemperature(self, thdata):
+    def calculateAverageTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the average temperature of the frame.
         """
@@ -222,7 +224,7 @@ class ThermalCameraController:
         loavg = loavg * 256
         return round(self.normalizeTemperature(loavg+hiavg), TEMPERATURE_SIG_DIGITS)
 
-    def calculateMinimumTemperature(self, thdata):
+    def calculateMinimumTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the minimum temperature of the frame.
         """
@@ -237,7 +239,7 @@ class ThermalCameraController:
         
         return round(self.normalizeTemperature(himin+lomin), TEMPERATURE_SIG_DIGITS)
 
-    def calculateMaximumTemperature(self, thdata):
+    def calculateMaximumTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the maximum temperature of the frame.
         """
@@ -263,7 +265,7 @@ class ThermalCameraController:
         MAJOR CHANGE: Do NOT convert to RGB. For some reason, this breaks the frame temperature data on TS001.
         Originally, it was the opposite: https://stackoverflow.com/questions/63108721/opencv-setting-videocap-property-to-cap-prop-convert-rgb-generates-weird-boolean
         """
-        #cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        #self._cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
 
         # Start main runtime loop
         while(self._cap.isOpened()):
@@ -304,7 +306,7 @@ class ThermalCameraController:
                     self._videoOut.write(heatmap)
                     
                 # Check for quit and other inputs
-                keyPress = cv2.waitKey(1)
+                keyPress = cv2.waitKey(KEY_PRESS_DELAY) & 0xFF
                 if keyPress == ord(KEY_QUIT):
                     # Check for recording and close out
                     if self._isRecording == True:
