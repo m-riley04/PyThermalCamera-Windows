@@ -14,12 +14,14 @@ from models.envinfo import EnvInfo
 
 class ThermalCameraController:
     def __init__(self, 
-                 device: DeviceInfo = DeviceInfo(), 
+                 device: DeviceInfo = DeviceInfo(),
+                 device_index: int = DEFAULT_VIDEO_DEVICE_INDEX,
                  environment: EnvInfo = EnvInfo(),
                  mediaOutputPath: str = DEFAULT_MEDIA_OUTPUT_PATH,
                  temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS):
         # Parameters init
         self._deviceInfo: DeviceInfo = device
+        self._deviceIndex: int = device_index
         self._env: EnvInfo = environment
         self._temperatureUnit: TemperatureUnit = temperatureUnit
         self._temperatureUnitSymbol: str = getSymbolFromTempUnit(self._temperatureUnit)
@@ -437,9 +439,9 @@ class ThermalCameraController:
         for backend in backends:
             if self._env.isPi:
                 # On the Pi, we have to use the V4L2 backend to get raw frames
-                cap = cv2.VideoCapture(f"/dev/video{self._deviceInfo.index}", backend)
+                cap = cv2.VideoCapture(f"/dev/video{self._deviceIndex}", backend)
             else:
-                cap = cv2.VideoCapture(self._deviceInfo.index, backend)
+                cap = cv2.VideoCapture(self._deviceIndex, backend)
             if cap is None or not cap.isOpened():
                 continue
 
@@ -469,7 +471,7 @@ class ThermalCameraController:
         if lastOpenedCap is not None:
             lastOpenedCap.release()
         raise RuntimeError(
-            f"Opened device index {self._deviceInfo.index} but could not obtain a raw YUY2 frame (2-channel). "
+            f"Opened device index {self._deviceIndex} but could not obtain a raw YUY2 frame (2-channel). "
             f"Tried backends: {backends}. "
             "This usually means OpenCV is converting to BGR/MJPG, which breaks thermal temperature decoding."
         )
@@ -481,7 +483,7 @@ class ThermalCameraController:
         # Initialize video
         self._cap = self._openCapture()
         if self._cap is None or not self._cap.isOpened():
-            raise RuntimeError(f"Failed to open video device index {self._deviceInfo.index}")
+            raise RuntimeError(f"Failed to open video device index {self._deviceIndex}")
         # Ensure our settings are applied even if the backend changes behavior after opening.
         self._configureCapture(self._cap)
 

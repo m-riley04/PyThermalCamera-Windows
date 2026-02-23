@@ -1,11 +1,11 @@
 import cv2
 import numpy as np
 import argparse
-from helpers.deviceHelper import getDevices
+from helpers.deviceHelper import getAllVideoDevices
 
 # Initialize argument parsing
 parser = argparse.ArgumentParser()
-parser.add_argument("--device", type=int, default=0, help=f"VideoDevice index. Currently selectable: {getDevices()}")
+parser.add_argument("--device", type=int, default=0, help=f"VideoDevice index. Currently selectable: {getAllVideoDevices()}")
 args = parser.parse_args()
 	
 # Check if device specified

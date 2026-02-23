@@ -1,6 +1,9 @@
 import cv2
 
-def getDevices() -> list[int]:
+from defaults.devices import SUPPORTED_DEVICES
+from enums.DeviceModelEnum import DeviceModel
+
+def getAllVideoDevices() -> list[int]:
 	"""
 	Returns a list of video device indexes for opencv. 
 	Credit: Patrick Yeadon on StackOverflow - https://stackoverflow.com/questions/8044539/listing-available-devices-in-python-opencv
@@ -16,3 +19,12 @@ def getDevices() -> list[int]:
 		cap.release()
 		index += 1
 	return arr
+
+def getSpecsByModel(model: DeviceModel) -> dict:
+    """
+	Get specifications for a device model.
+	"""
+    if model not in SUPPORTED_DEVICES:
+        # Default to TC001 if unknown
+        return SUPPORTED_DEVICES[DeviceModel.TC001]
+    return SUPPORTED_DEVICES[model]

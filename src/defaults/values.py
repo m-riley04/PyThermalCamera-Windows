@@ -8,12 +8,13 @@ DEFAULT_VIDEO_DEVICE_INDEX: int = 0
 # NOTE: The defaults for these values are set to the TC001's specifications, but they can be overridden by command line arguments when running the program.
 DEFAULT_DEVICE_TEMP_MAX_C: int = 550
 DEFAULT_DEVICE_TEMP_MIN_C: int = -20
+DEFAULT_DEVICE_TEMP_ACCURACY_C: float = 2.0
 
 ### THERMAL CONTROLLER CONSTANTS
 DEFAULT_SENSOR_WIDTH_PX: int = 256
 DEFAULT_SENSOR_HEIGHT_PX: int = 192
 DEFAULT_DEVICE_FPS: int = 25
-DEFAULT_DEVICE_NAME: str = "TS001"
+DEFAULT_DEVICE_NAME: str = "Topdon TS001"
 
 ### DEFAULT CALCULATED VALUES
 DEFAULT_TEMPERATURE = 0
