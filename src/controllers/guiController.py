@@ -7,13 +7,14 @@ from enums.ColormapEnum import Colormap
 class GuiController:
     def __init__(self, 
                  windowTitle: str = WINDOW_TITLE, 
-                 width: int = SENSOR_WIDTH, 
-                 height: int = SENSOR_HEIGHT, 
-                 scale: int = SCALE, 
-                 colormap: Colormap = COLORMAP, 
-                 contrast: float = CONTRAST, 
-                 blurRadius: int = BLUR_RADIUS, 
-                 threshold: int = THRESHOLD):
+                 width: int = DEFAULT_SENSOR_WIDTH_PX, 
+                 height: int = DEFAULT_SENSOR_HEIGHT_PX, 
+                 scale: int = DEFAULT_SCALE, 
+                 colormap: Colormap = DEFAULT_COLORMAP, 
+                 contrast: float = DEFAULT_CONTRAST, 
+                 blurRadius: int = DEFAULT_BLUR_RADIUS, 
+                 threshold: int = DEFAULT_THRESHOLD,
+                 temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL):
         # Passed parameters
         self.windowTitle = windowTitle
         self.width = width
@@ -23,23 +24,24 @@ class GuiController:
         self.contrast = contrast
         self.blurRadius = blurRadius
         self.threshold = threshold
+        self.temperatureUnitSymbol = temperatureUnitSymbol
         
         # Calculated properties
         self.scaledWidth = int(self.width*self.scale)
         self.scaledHeight = int(self.height*self.scale)
         
         # States
-        self.isHudVisible: bool = HUD_VISIBLE
-        self.isFullscreen: bool = FULLSCREEN
+        self.isHudVisible: bool = DEFAULT_HUD_VISIBLE
+        self.isFullscreen: bool = DEFAULT_FULLSCREEN
         self.isInverted: bool = False
         
         # Recording stats
-        self.recordingStartTime: float = RECORDING_START_TIME
-        self.last_snapshot_time: str = LAST_SNAPSHOT_TIME
-        self.recordingDuration: str = RECORDING_DURATION
+        self.recordingStartTime: float = DEFAULT_RECORDING_START_TIME
+        self.last_snapshot_time: str = DEFAULT_LAST_SNAPSHOT_TIME
+        self.recordingDuration: str = DEFAULT_RECORDING_DURATION
         
         # Other
-        self._font = FONT
+        self._font = DEFAULT_FONT
         
         # Initialize the GUI
         cv2.namedWindow(self.windowTitle, cv2.WINDOW_GUI_NORMAL)
@@ -52,7 +54,7 @@ class GuiController:
         self.recordingDuration = (time.time() - self.recordingStartTime)
         self.recordingDuration = time.strftime("%H:%M:%S", time.gmtime(self.recordingDuration)) 
         
-    def drawGUI(self, imdata, temp, averageTemp, maxTemp, minTemp, isRecording, mrow, mcol, lrow, lcol):
+    def drawGUI(self, imdata, temp, averageTemp, maxTemp, minTemp, labelThreshold, isRecording, mrow, mcol, lrow, lcol):
         """
         Draws the GUI elements on the thermal image.
         """
@@ -74,14 +76,14 @@ class GuiController:
 
         # Draw HUD
         if self.isHudVisible == True:
-            img = self.drawHUD(img, averageTemp, isRecording)
+            img = self.drawHUD(img, averageTemp, labelThreshold, isRecording)
         
         # Display floating max temp
-        if maxTemp > averageTemp + self.threshold:
+        if maxTemp > averageTemp + labelThreshold:
             img = self.drawMaxTemp(img, mrow, mcol, maxTemp)
 
         # Display floating min temp
-        if minTemp < averageTemp - self.threshold:
+        if minTemp < averageTemp - labelThreshold:
             img = self.drawMinTemp(img, lrow, lcol, minTemp)
             
         # Update recording stats
@@ -96,7 +98,7 @@ class GuiController:
         """
         cv2.putText(
             img,
-            str(temp)+' C',
+            str(temp)+' '+self.temperatureUnitSymbol,
             (int(self.scaledWidth/2)+10, int(self.scaledHeight/2)-10),
             self._font,
             0.45,
@@ -105,7 +107,7 @@ class GuiController:
             cv2.LINE_AA)
         cv2.putText(
             img,
-            str(temp)+' C',
+            str(temp)+' '+self.temperatureUnitSymbol,
             (int(self.scaledWidth/2)+10, int(self.scaledHeight/2)-10),
             self._font,
             0.45,
@@ -147,7 +149,7 @@ class GuiController:
         
         return img
 
-    def drawHUD(self, img, averageTemp, isRecording):
+    def drawHUD(self, img, averageTemp, labelThreshold, isRecording):
         """
         Draws the HUD onto the image.
         """
@@ -162,7 +164,7 @@ class GuiController:
         # Put text in the box
         cv2.putText(
             img,
-            'Avg Temp: '+str(averageTemp)+' C',
+            'Avg Temp: '+str(averageTemp)+' '+self.temperatureUnitSymbol,
             (10, 14),
             self._font,
             0.4,
@@ -172,7 +174,7 @@ class GuiController:
 
         cv2.putText(
             img,
-            'Label Threshold: '+str(self.threshold)+' C',
+            'Label Threshold: '+str(labelThreshold)+' '+self.temperatureUnitSymbol,
             (10, 28),
             self._font,
             0.4,
@@ -284,7 +286,7 @@ class GuiController:
         # Draw max temp label(s)
         cv2.putText(
             img=img,
-            text=str(maxTemp)+' C', 
+            text=str(maxTemp)+' '+self.temperatureUnitSymbol, 
             org=((row*self.scale)+10, (col*self.scale)+5),
             fontFace=self._font, 
             fontScale=0.45,
@@ -294,7 +296,7 @@ class GuiController:
         
         cv2.putText(
             img=img,
-            text=str(maxTemp)+' C',
+            text=str(maxTemp)+' '+self.temperatureUnitSymbol,
             org=((row*self.scale)+10, (col*self.scale)+5),
             fontFace=self._font,
             fontScale=0.45,
@@ -315,7 +317,7 @@ class GuiController:
         # Draw min temp label(s)
         cv2.putText(
             img,
-            str(minTemp)+' C',
+            str(minTemp)+' '+self.temperatureUnitSymbol,
             ((row*self.scale)+10,
              (col*self.scale)+5),
             self._font,
@@ -325,7 +327,7 @@ class GuiController:
             cv2.LINE_AA)
         cv2.putText(
             img,
-            str(minTemp)+' C', 
+            str(minTemp)+' '+self.temperatureUnitSymbol, 
             ((row*self.scale)+10,
              (col*self.scale)+5),
             self._font,
@@ -371,6 +373,12 @@ class GuiController:
         """
         Applies effects (contrast, blur, upscaling, interpolation, etc.) to the image data.
         """
+        # Convert thermal camera YUYV image data into BGR for display.
+        try:
+            imdata = cv2.cvtColor(imdata, cv2.COLOR_YUV2BGR_YUYV)
+        except cv2.error:
+            pass
+
         # Contrast
         img = cv2.convertScaleAbs(imdata, alpha=self.contrast)
         

@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 output/
+.venv/
+venv/
+TS001.py

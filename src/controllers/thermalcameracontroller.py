@@ -1,40 +1,42 @@
-import cv2, time, os
+import cv2, time, os, sys
 import numpy as np
+from numpy.typing import NDArray
 
 from defaults.values import *
 from defaults.keybinds import *
 
 from enums.ColormapEnum import Colormap
 from controllers.guiController import GuiController
+from enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
+from helpers.conversions import convertTemperatureDeltaForDisplay, convertTemperatureForDisplay
+from models.deviceinfo import DeviceInfo
+from models.envinfo import EnvInfo
 
 class ThermalCameraController:
     def __init__(self, 
-                 deviceIndex: int = VIDEO_DEVICE_INDEX, 
-                 width: int = SENSOR_WIDTH, 
-                 height: int = SENSOR_HEIGHT, 
-                 fps: int = DEVICE_FPS, 
-                 deviceName: str = DEVICE_NAME, 
-                 mediaOutputPath: str = MEDIA_OUTPUT_PATH):
+                 device: DeviceInfo = DeviceInfo(), 
+                 environment: EnvInfo = EnvInfo(),
+                 mediaOutputPath: str = DEFAULT_MEDIA_OUTPUT_PATH,
+                 temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS):
         # Parameters init
-        self._deviceIndex: int = deviceIndex
-        self._deviceName: str = deviceName
-        self._width: int = width
-        self._height: int = height
-        self._fps: int = fps
+        self._deviceInfo: DeviceInfo = device
+        self._env: EnvInfo = environment
+        self._temperatureUnit: TemperatureUnit = temperatureUnit
+        self._temperatureUnitSymbol: str = getSymbolFromTempUnit(self._temperatureUnit)
 
         # Calculated values init
-        self._rawTemp = TEMPERATURE_RAW
-        self._temp = TEMPERATURE
-        self._maxTemp = TEMPERATURE_MAX
-        self._minTemp = TEMPERATURE_MIN
-        self._avgTemp = TEMPERATURE_AVG
+        self._rawTemp = DEFAULT_TEMPERATURE_RAW
+        self._temp = DEFAULT_TEMPERATURE
+        self._maxTemp = DEFAULT_TEMPERATURE_MAX
+        self._minTemp = DEFAULT_TEMPERATURE_MIN
+        self._avgTemp = DEFAULT_TEMPERATURE_AVG
         self._mcol: int = 0
         self._mrow: int = 0
         self._lcol: int = 0
         self._lrow: int = 0
         
         # Media/recording init
-        self._isRecording = not RECORDING
+        self._isRecording = DEFAULT_RECORDING_STATE
         self._mediaOutputPath: str = mediaOutputPath
         
         if not os.path.exists(self._mediaOutputPath):
@@ -42,13 +44,71 @@ class ThermalCameraController:
         
         # GUI Init
         self._guiController = GuiController(
-            width=self._width,
-            height=self._height)
+            width=self._deviceInfo.width,
+            height=self._deviceInfo.height,
+            temperatureUnitSymbol=self._temperatureUnitSymbol)
         
         # OpenCV init
         self._cap = None
         self._videoOut = None
+        self._didLogFrameLayoutWarning = False
+        self._captureBackend = None
+        self._thermalByteOrder: str | None = None  # "lsb0" (byte0 is LSB) or "lsb1" (byte1 is LSB)
+        self._didLogThermalByteOrder = False
+
+    def _rawFromBytes(self, byte0: int, byte1: int) -> int:
+        """Combine two uint8 bytes into a 16-bit raw temperature sample.
+
+        The original TC001 script treats channel 0 as the LSB and channel 1 as the MSB.
+        Some Windows capture paths/backends can swap this ordering, so we allow autodetection.
+        """
+        if self._thermalByteOrder == "lsb1":
+            return int(byte1) + (int(byte0) << 8)
+        return int(byte0) + (int(byte1) << 8)
     
+    def is_plausible_celsius(self, temp: float) -> bool:
+        """
+        Checks if a temperature is within a plausible range for Celsius temperatures that the device should be able to read.
+        Used primarily for autodetecting byte order and errors in data.
+        """
+        return self._deviceInfo.temp_min_c <= temp <= self._deviceInfo.temp_max_c
+
+    def _maybeDetectThermalByteOrder(self, thdata: NDArray) -> None:
+        """Detect swapped byte order once using a plausibility check.
+
+        We choose the ordering whose *center pixel* temperature lands in a reasonable range.
+        If both are unreasonable (e.g. synthetic test data), we keep the default.
+        """
+
+        if self._thermalByteOrder is not None:
+            return
+
+        if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
+            self._thermalByteOrder = "lsb0"
+            return
+
+        centerRow = thdata.shape[0] // 2
+        centerCol = thdata.shape[1] // 2
+        b0 = int(thdata[centerRow, centerCol, 0])
+        b1 = int(thdata[centerRow, centerCol, 1])
+
+        raw_lsb0 = int(b0) + (int(b1) << 8)
+        raw_lsb1 = int(b1) + (int(b0) << 8)
+        t0 = float(self.normalizeTemperature(raw_lsb0))
+        t1 = float(self.normalizeTemperature(raw_lsb1))
+
+        if self.is_plausible_celsius(t1) and not self.is_plausible_celsius(t0):
+            self._thermalByteOrder = "lsb1"
+        else:
+            self._thermalByteOrder = "lsb0"
+
+        if self._thermalByteOrder == "lsb1" and not self._didLogThermalByteOrder:
+            print(
+                "Detected swapped thermal byte order (Windows capture). "
+                "Using channel0 as MSB / channel1 as LSB for temperature decode."
+            )
+            self._didLogThermalByteOrder = True
+
     @staticmethod
     def printBindings():
         """
@@ -65,6 +125,7 @@ class ThermalCameraController:
         print(f'{KEY_CYCLE_THROUGH_COLORMAPS} : Cycle through ColorMaps')
         print(f'{KEY_INVERT} : Invert ColorMap')
         print(f'{KEY_TOGGLE_HUD} : Toggle HUD')
+        print(f'{KEY_TOGGLE_TEMP_UNIT} : Toggle Celsius/Fahrenheit')
         print(f'{KEY_QUIT} : Quit')
 
     @staticmethod
@@ -102,26 +163,26 @@ class ThermalCameraController:
             self._guiController.scale += SCALE_INCREMENT
             if self._guiController.scale >= SCALE_MAX:
                 self._guiController.scale = SCALE_MAX
-            self._guiController.scaledWidth = self._width*self._guiController.scale
-            self._guiController.scaledHeight = self._height*self._guiController.scale
+            self._guiController.scaledWidth = self._deviceInfo.width*self._guiController.scale
+            self._guiController.scaledHeight = self._deviceInfo.height*self._guiController.scale
             if self._guiController.isFullscreen == False:
                 cv2.resizeWindow(self._guiController.windowTitle, self._guiController.scaledWidth, self._guiController.scaledHeight)
         if keyPress == ord(KEY_DECREASE_SCALE): # Decrease scale
             self._guiController.scale -= SCALE_INCREMENT
             if self._guiController.scale <= SCALE_MIN:
                 self._guiController.scale = SCALE_MIN
-            self._guiController.scaledWidth = self._width*self._guiController.scale
-            self._guiController.scaledHeight = self._height*self._guiController.scale
+            self._guiController.scaledWidth = self._deviceInfo.width*self._guiController.scale
+            self._guiController.scaledHeight = self._deviceInfo.height*self._guiController.scale
             if self._guiController.isFullscreen == False:
                 cv2.resizeWindow(self._guiController.windowTitle, self._guiController.scaledWidth,self._guiController.scaledHeight)
 
         ### FULLSCREEN CONTROLS
         if keyPress == ord(KEY_FULLSCREEN): # Enable fullscreen
-            self._guiController.isFullscreen = FULLSCREEN
+            self._guiController.isFullscreen = DEFAULT_FULLSCREEN
             cv2.namedWindow(self._guiController.windowTitle, cv2.WND_PROP_FULLSCREEN)
             cv2.setWindowProperty(self._guiController.windowTitle, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         if keyPress == ord(KEY_WINDOWED): # Disable fullscreen
-            self._guiController.isFullscreen = not FULLSCREEN
+            self._guiController.isFullscreen = not DEFAULT_FULLSCREEN
             cv2.namedWindow(self._guiController.windowTitle, cv2.WINDOW_GUI_NORMAL)
             cv2.setWindowProperty(self._guiController.windowTitle, cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_GUI_NORMAL)
             cv2.resizeWindow(self._guiController.windowTitle, self._guiController.scaledWidth, self._guiController.scaledHeight)
@@ -141,9 +202,20 @@ class ThermalCameraController:
         ### HUD CONTROLS
         if keyPress == ord(KEY_TOGGLE_HUD): # Toggle HUD
             if self._guiController.isHudVisible == True:
-                self._guiController.isHudVisible = not HUD_VISIBLE
+                self._guiController.isHudVisible = not DEFAULT_HUD_VISIBLE
             elif self._guiController.isHudVisible == False:
-                self._guiController.isHudVisible = HUD_VISIBLE
+                self._guiController.isHudVisible = DEFAULT_HUD_VISIBLE
+
+        if keyPress == ord(KEY_TOGGLE_TEMP_UNIT): # Toggle temperature unit
+            if self._temperatureUnit == TemperatureUnit.CELSIUS:
+                self._temperatureUnit = TemperatureUnit.FAHRENHEIT
+            elif self._temperatureUnit == TemperatureUnit.FAHRENHEIT:
+                self._temperatureUnit = TemperatureUnit.KELVIN
+            else:
+                self._temperatureUnit = TemperatureUnit.CELSIUS
+
+            self._temperatureUnitSymbol = getSymbolFromTempUnit(self._temperatureUnit)
+            self._guiController.temperatureUnitSymbol = self._temperatureUnitSymbol
 
         ### COLOR MAPS
         if keyPress == ord(KEY_CYCLE_THROUGH_COLORMAPS): # Cycle through color maps
@@ -158,12 +230,12 @@ class ThermalCameraController:
         ### RECORDING/MEDIA CONTROLS
         if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start recording
             self._videoOut = self._record()
-            self._isRecording = RECORDING
+            self._isRecording = DEFAULT_RECORDING_STATE
             self._guiController.recordingStartTime = time.time()
             
         if keyPress == ord(KEY_STOP): # Stop reording
-            self._isRecording = not RECORDING
-            self._guiController.recordingDuration = RECORDING_DURATION
+            self._isRecording = not DEFAULT_RECORDING_STATE
+            self._guiController.recordingDuration = DEFAULT_RECORDING_DURATION
 
         if keyPress == ord(KEY_SNAPSHOT): # Take a snapshot
             self._guiController.last_snapshot_time = self._snapshot(img)
@@ -177,7 +249,7 @@ class ThermalCameraController:
         self._videoOut = cv2.VideoWriter(
             f"{self._mediaOutputPath}/{currentTimeStr}-output.avi",
             cv2.VideoWriter_fourcc(*'XVID'),
-            self._fps,
+            self._deviceInfo.fps,
             (self._guiController.scaledWidth, self._guiController.scaledHeight))
         return self._videoOut
     
@@ -188,7 +260,7 @@ class ThermalCameraController:
         #I would put colons in here, but it Win throws a fit if you try and open them!
         currentTimeStr = time.strftime("%Y%m%d-%H%M%S") 
         self._guiController.last_snapshot_time = time.strftime("%H:%M:%S")
-        cv2.imwrite(f"{self._mediaOutputPath}/{self._deviceName}-{currentTimeStr}.png", img)
+        cv2.imwrite(f"{self._mediaOutputPath}/{self._deviceInfo.name}-{currentTimeStr}.png", img)
         return self._guiController.last_snapshot_time
 
     def normalizeTemperature(self, rawTemp: float, d: int = 64, c: float = 273.15) -> float:
@@ -198,89 +270,237 @@ class ThermalCameraController:
         """
         return (rawTemp/d) - c
 
-    def calculateTemperature(self, thdata):
+    def calculateTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the (normalized) temperature of the frame.
         """
         raw = self.calculateRawTemperature(thdata)
-        return round(self.normalizeTemperature(raw), TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
-    def calculateRawTemperature(self, thdata):
+    def calculateRawTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the raw temperature of the center of the frame.
         """
-        return thdata[self._height // 2][self._width // 2]
+        if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
+            return DEFAULT_TEMPERATURE_RAW
 
-    def calculateAverageTemperature(self, thdata):
+        self._maybeDetectThermalByteOrder(thdata)
+
+        centerRow = thdata.shape[0] // 2
+        centerCol = thdata.shape[1] // 2
+        b0 = int(thdata[centerRow, centerCol, 0])
+        b1 = int(thdata[centerRow, centerCol, 1])
+        return self._rawFromBytes(b0, b1)
+
+    def calculateAverageTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the average temperature of the frame.
         """
-        return round(self.normalizeTemperature(thdata.mean()), TEMPERATURE_SIG_DIGITS)
+        if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
+            return DEFAULT_TEMPERATURE_AVG
 
-    def calculateMinimumTemperature(self, thdata):
+        self._maybeDetectThermalByteOrder(thdata)
+        b0avg = int(thdata[..., 0].mean())
+        b1avg = int(thdata[..., 1].mean())
+        raw = self._rawFromBytes(b0avg, b1avg)
+        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+
+    def calculateMinimumTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the minimum temperature of the frame.
         """
-        self._lcol, self._lrow = np.unravel_index(np.argmin(thdata), thdata.shape)       
-        return round(self.normalizeTemperature(thdata[self._lcol][self._lrow]), TEMPERATURE_SIG_DIGITS)
+        # Find the min temperature in the frame
+        posmin = int(thdata[...,1].argmin())
+        
+        # Since argmax returns a linear index, convert back to row and col
+        width = thdata.shape[1]
+        self._lcol, self._lrow = divmod(posmin, width)
+        self._maybeDetectThermalByteOrder(thdata)
+        b0 = int(thdata[self._lcol, self._lrow, 0])
+        b1 = int(thdata[self._lcol, self._lrow, 1])
+        raw = self._rawFromBytes(b0, b1)
 
-    def calculateMaximumTemperature(self, thdata):
+        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+
+    def calculateMaximumTemperature(self, thdata: NDArray) -> float:
         """
         Calculates the maximum temperature of the frame.
         """
         # Find the max temperature in the frame
-        self._mcol, self._mrow = np.unravel_index(np.argmax(thdata), thdata.shape)       
-        return round(self.normalizeTemperature(thdata[self._mcol][self._mrow]), TEMPERATURE_SIG_DIGITS)
+        lomax = int(thdata[...,1].max())
+        posmax = int(thdata[...,1].argmax())
+
+        # Since argmax returns a linear index, convert back to row and col
+        width = thdata.shape[1]
+        self._mcol, self._mrow = divmod(posmax, width)
+        self._maybeDetectThermalByteOrder(thdata)
+        b0 = int(thdata[self._mcol, self._mrow, 0])
+        b1 = int(thdata[self._mcol, self._mrow, 1])
+        raw = self._rawFromBytes(b0, b1)
+
+        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+
+    def _splitFrameData(self, frame: NDArray, *, logWarnings: bool = True) -> tuple[NDArray | None, NDArray | None]:
+        """
+        Splits frame into visible-image and thermal-data halves, handling backend-specific layouts.
+        """
+        if frame is None or frame.size == 0:
+            return None, None
+
+        parsedFrame = frame
+
+        # If OpenCV has already converted to BGR/RGB (3 channels) we can no longer recover thermal bytes.
+        # Fail fast with a clear warning rather than producing nonsense temperatures.
+        if parsedFrame.ndim == 3 and parsedFrame.shape[2] != 2:
+            if logWarnings and not self._didLogFrameLayoutWarning:
+                print(
+                    "OpenCV returned a converted frame (not raw YUY2). "
+                    f"shape={parsedFrame.shape}, dtype={parsedFrame.dtype}. "
+                    "Thermal bytes are not available; try a different backend (DSHOW vs MSMF) or disable RGB conversion."
+                )
+                self._didLogFrameLayoutWarning = True
+            return None, None
+
+        totalRows = self._deviceInfo.height * 2
+
+        # Some backends return flattened buffers (often with padded row stride).
+        if parsedFrame.ndim == 2:
+            flattened = parsedFrame.reshape(-1)
+            if flattened.size % totalRows == 0:
+                bytesPerRow = flattened.size // totalRows
+                if bytesPerRow % 2 == 0:
+                    pixelsPerRow = bytesPerRow // 2
+                    if pixelsPerRow >= self._deviceInfo.width:
+                        parsedFrame = flattened.reshape((totalRows, pixelsPerRow, 2))
+                        parsedFrame = parsedFrame[:, :self._deviceInfo.width, :]
+
+        if parsedFrame.ndim == 3 and parsedFrame.shape[0] >= totalRows:
+            imageData = parsedFrame[:self._deviceInfo.height, :, :]
+            thermalData = parsedFrame[self._deviceInfo.height:self._deviceInfo.height * 2, :, :]
+            return imageData, thermalData
+
+        if parsedFrame.ndim == 3 and parsedFrame.shape[0] >= 2:
+            imageData, thermalData = np.array_split(parsedFrame, 2, axis=0)
+            return imageData, thermalData
+
+        if logWarnings and not self._didLogFrameLayoutWarning:
+            print(f"Unsupported frame layout from OpenCV: shape={parsedFrame.shape}, dtype={parsedFrame.dtype}")
+            self._didLogFrameLayoutWarning = True
+
+        return None, None
+
+    def _configureCapture(self, cap: cv2.VideoCapture) -> None:
+        """Apply capture properties required to preserve thermal bytes."""
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUY2'))
+        # Keep raw bytes; many platforms treat any non-zero as True.
+        cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._deviceInfo.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._deviceInfo.height * 2)
+        cap.set(cv2.CAP_PROP_FPS, self._deviceInfo.fps)
+
+    def _openCapture(self) -> cv2.VideoCapture:
+        """Opens the video capture and verifies we can read raw (2-channel) frames.
+
+        On Windows especially, some backends ignore CAP_PROP_CONVERT_RGB and return 3-channel BGR,
+        which destroys the thermal data. We probe a few backends and only accept one that yields
+        a splittable frame with a 2-channel layout.
+        """
+        backends: list[int]
+        if sys.platform.startswith("win"):
+            backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
+        else:
+            backends = [cv2.CAP_ANY] # TODO: maybe do better env checks for linux/pi?
+
+        lastOpenedCap: cv2.VideoCapture | None = None
+        lastBackend: int | None = None
+
+        for backend in backends:
+            if self._env.isPi:
+                # On the Pi, we have to use the V4L2 backend to get raw frames
+                cap = cv2.VideoCapture(f"/dev/video{self._deviceInfo.index}", backend)
+            else:
+                cap = cv2.VideoCapture(self._deviceInfo.index, backend)
+            if cap is None or not cap.isOpened():
+                continue
+
+            lastOpenedCap = cap
+            lastBackend = backend
+
+            self._configureCapture(cap)
+
+            # Prime the capture and validate the layout.
+            ok = False
+            for _ in range(5):
+                ret, frame = cap.read()
+                if not ret:
+                    continue
+                imdata, thdata = self._splitFrameData(frame, logWarnings=False)
+                if imdata is not None and thdata is not None and thdata.ndim == 3 and thdata.shape[2] == 2:
+                    ok = True
+                    break
+
+            if ok:
+                self._captureBackend = backend
+                return cap
+
+            cap.release()
+
+        # If we got here, nothing produced a usable raw frame.
+        if lastOpenedCap is not None:
+            lastOpenedCap.release()
+        raise RuntimeError(
+            f"Opened device index {self._deviceInfo.index} but could not obtain a raw YUY2 frame (2-channel). "
+            f"Tried backends: {backends}. "
+            "This usually means OpenCV is converting to BGR/MJPG, which breaks thermal temperature decoding."
+        )
 
     def run(self):
         """
         Runs the main runtime loop for the program.
         """
         # Initialize video
-        self._cap = cv2.VideoCapture(self._deviceIndex)
-
-        """
-        disable automatic YUY2 -> RGB conversion in OpenCV
-        """
-        self._cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        self._cap = self._openCapture()
+        if self._cap is None or not self._cap.isOpened():
+            raise RuntimeError(f"Failed to open video device index {self._deviceInfo.index}")
+        # Ensure our settings are applied even if the backend changes behavior after opening.
+        self._configureCapture(self._cap)
 
         # Start main runtime loop
         while(self._cap.isOpened()):
             ret, frame = self._cap.read()
             if ret == True:
                 # Split frame into two parts: image data and thermal data
-                # We use frame[0] since on Windows this is returned as a 2D array with size [1][<number of pixels>]
-                # Other OS are untested
-                imdata, thdata = np.array_split(frame[0], 2)
-
-                # First convert the image to YUV
-                yuv_pic = np.frombuffer(imdata, dtype=np.uint8).reshape((self._height, self._width, 2))
-                # Next convert to RGB
-                rgb_pic = cv2.cvtColor(yuv_pic, cv2.COLOR_YUV2RGB_YUY2)
-                # Assemble the thermal data
-                thm_pic = np.frombuffer(thdata, dtype=np.uint16).reshape((self._height, self._width))
-                
-                # Now parse the data from the bottom frame and convert to temp!
-                # Grab data from the center pixel...
-                self._rawTemp = self.calculateRawTemperature(thm_pic)
-                self._temp = self.calculateTemperature(thm_pic)
-
-                # Calculate minimum temperature
-                self._minTemp = self.calculateMinimumTemperature(thm_pic)
-                
-                # Calculate maximum temperature
-                self._maxTemp = self.calculateMaximumTemperature(thm_pic)
+                imdata, thdata = self._splitFrameData(frame)
+                if imdata is None or thdata is None or thdata.size == 0:
+                    if not self._didLogFrameLayoutWarning:
+                        print(
+                            "Failed to split frame data into image and thermal components. "
+                            f"Frame shape: {frame.shape}, imdata shape: {imdata.shape if imdata is not None else 'None'}, "
+                            f"thdata shape: {thdata.shape if thdata is not None else 'None'}")
+                        self._didLogFrameLayoutWarning = True
+                    continue
 
                 # Find the average temperature in the frame
-                self._avgTemp = self.calculateAverageTemperature(thm_pic)
-                
+                self._avgTemp = self.calculateAverageTemperature(thdata)
+                self._rawTemp = self.calculateRawTemperature(thdata) # also updates byte order detection
+                self._temp = self.calculateTemperature(thdata)
+                self._minTemp = self.calculateMinimumTemperature(thdata)
+                self._maxTemp = self.calculateMaximumTemperature(thdata)
+
+                displayTemp = convertTemperatureForDisplay(self._temp, self._temperatureUnit)
+                displayMinTemp = convertTemperatureForDisplay(self._minTemp, self._temperatureUnit)
+                displayMaxTemp = convertTemperatureForDisplay(self._maxTemp, self._temperatureUnit)
+                displayAvgTemp = convertTemperatureForDisplay(self._avgTemp, self._temperatureUnit)
+                displayThreshold = convertTemperatureDeltaForDisplay(self._guiController.threshold, self._temperatureUnit)
+
                 # Draw GUI elements
                 heatmap = self._guiController.drawGUI(
-                    imdata=rgb_pic,
-                    temp=self._temp,
-                    maxTemp=self._maxTemp,
-                    minTemp=self._minTemp,
-                    averageTemp=self._avgTemp,
+                    imdata=imdata,
+                    temp=displayTemp,
+                    maxTemp=displayMaxTemp,
+                    minTemp=displayMinTemp,
+                    averageTemp=displayAvgTemp,
+                    labelThreshold=displayThreshold,
                     isRecording=self._isRecording,
                     mcol=self._mcol,
                     mrow=self._mrow,
@@ -292,7 +512,7 @@ class ThermalCameraController:
                     self._videoOut.write(heatmap)
                     
                 # Check for quit and other inputs
-                keyPress = cv2.waitKey(1)
+                keyPress = cv2.waitKey(KEY_PRESS_DELAY) & 0xFF
                 if keyPress == ord(KEY_QUIT):
                     # Check for recording and close out
                     if self._isRecording == True:

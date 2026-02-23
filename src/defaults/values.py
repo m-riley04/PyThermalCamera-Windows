@@ -1,7 +1,28 @@
 from defaults.gui_values import *
-from defaults.thermal_values import *
-from defaults.recording_values import *
-from defaults.processing_values import *
+from os import getcwd
 
 ### MAIN CONSTANTS
-VIDEO_DEVICE_INDEX: int = 1
+DEFAULT_VIDEO_DEVICE_INDEX: int = 0
+
+#### DEVICE CONSTANTS
+# NOTE: The defaults for these values are set to the TC001's specifications, but they can be overridden by command line arguments when running the program.
+DEFAULT_DEVICE_TEMP_MAX_C: int = 550
+DEFAULT_DEVICE_TEMP_MIN_C: int = -20
+
+### THERMAL CONTROLLER CONSTANTS
+DEFAULT_SENSOR_WIDTH_PX: int = 256
+DEFAULT_SENSOR_HEIGHT_PX: int = 192
+DEFAULT_DEVICE_FPS: int = 25
+DEFAULT_DEVICE_NAME: str = "TS001"
+
+### DEFAULT CALCULATED VALUES
+DEFAULT_TEMPERATURE = 0
+DEFAULT_TEMPERATURE_RAW = 0
+DEFAULT_TEMPERATURE_MIN = 0
+DEFAULT_TEMPERATURE_MAX = 0
+DEFAULT_TEMPERATURE_AVG = 0
+DEFAULT_TEMPERATURE_SIG_DIGITS = 2
+
+### DEFAULT RECORDING CONSTANTS
+DEFAULT_MEDIA_OUTPUT_PATH: str = f"{getcwd()}/output"
+DEFAULT_RECORDING_STATE: bool = False
