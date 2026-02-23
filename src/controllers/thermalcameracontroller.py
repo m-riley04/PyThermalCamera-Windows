@@ -110,6 +110,16 @@ class ThermalCameraController:
             self._didLogThermalByteOrder = True
 
     @staticmethod
+    def printInfo():
+        """
+        Print info about the program and device.
+        """
+        print('== Thermal Camera Controller ==\n')
+        print(f'Device Name: {DEFAULT_DEVICE_NAME}')
+        print(f'Device Index: {DEFAULT_VIDEO_DEVICE_INDEX}')
+        print(f"Raspberry Pi Detected: {EnvInfo().isPi}")
+
+    @staticmethod
     def printBindings():
         """
         Print key bindings for the program.
@@ -363,6 +373,13 @@ class ThermalCameraController:
 
         totalRows = self._deviceInfo.height * 2
 
+        # Some Linux/V4L2 paths can expose packed YUY2 as a 2D uint16 image
+        # where each uint16 encodes the two bytes we need for thermal decoding.
+        if parsedFrame.ndim == 2 and parsedFrame.dtype == np.uint16:
+            rows, cols = parsedFrame.shape
+            if rows >= totalRows and cols >= self._deviceInfo.width:
+                parsedFrame = parsedFrame.view(np.uint8).reshape(rows, cols, 2)
+
         # Some backends return flattened buffers (often with padded row stride).
         if parsedFrame.ndim == 2:
             flattened = parsedFrame.reshape(-1)
@@ -408,8 +425,11 @@ class ThermalCameraController:
         backends: list[int]
         if sys.platform.startswith("win"):
             backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
+        elif self._env.isPi:
+            # Prefer V4L2 on Pi/Linux to preserve raw YUY2 bytes.
+            backends = [cv2.CAP_V4L2, cv2.CAP_ANY]
         else:
-            backends = [cv2.CAP_ANY] # TODO: maybe do better env checks for linux/pi?
+            backends = [cv2.CAP_V4L2, cv2.CAP_ANY]
 
         lastOpenedCap: cv2.VideoCapture | None = None
         lastBackend: int | None = None
