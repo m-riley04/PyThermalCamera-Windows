@@ -12,7 +12,6 @@ if SRC_ROOT not in sys.path:
     sys.path.insert(0, SRC_ROOT)
 
 from controllers.thermalcameracontroller import ThermalCameraController
-from defaults.thermal_values import SENSOR_WIDTH
 from enums.TemperatureUnitEnum import TemperatureUnit
 from helpers.conversions import convertTemperatureDeltaForDisplay, convertTemperatureForDisplay
 
@@ -20,7 +19,7 @@ from helpers.conversions import convertTemperatureDeltaForDisplay, convertTemper
 class TemperatureCalculationTests(unittest.TestCase):
     def setUp(self):
         self.controller = ThermalCameraController.__new__(ThermalCameraController)
-        self.controller._width = SENSOR_WIDTH
+        self.controller._width = 256
         self.controller._height = 192
         self.controller._didLogFrameLayoutWarning = False
 

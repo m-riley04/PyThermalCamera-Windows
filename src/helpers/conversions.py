@@ -1,4 +1,4 @@
-from defaults.thermal_values import TEMPERATURE_SIG_DIGITS
+from defaults.values import DEFAULT_TEMPERATURE_SIG_DIGITS
 from enums.TemperatureUnitEnum import TemperatureUnit
 
 # NOTE: most of these conversions are from celsius to x. This is because the data is stored as celsius.
@@ -29,9 +29,9 @@ def convertTemperatureForDisplay(temperatureCelsius: float, temperatureUnit: Tem
     Converts the temperature to the appropriate unit for display based on the user's preference.
     """
     if temperatureUnit == TemperatureUnit.FAHRENHEIT:
-        return round(celsiusToFahrenheit(temperatureCelsius), TEMPERATURE_SIG_DIGITS)
+        return round(celsiusToFahrenheit(temperatureCelsius), DEFAULT_TEMPERATURE_SIG_DIGITS)
     elif temperatureUnit == TemperatureUnit.KELVIN:
-        return round(celsiusToKelvin(temperatureCelsius), TEMPERATURE_SIG_DIGITS)
+        return round(celsiusToKelvin(temperatureCelsius), DEFAULT_TEMPERATURE_SIG_DIGITS)
     return temperatureCelsius
 
 def convertTemperatureDeltaForDisplay(temperatureDeltaCelsius: float, temperatureUnit: TemperatureUnit) -> float:
@@ -39,7 +39,7 @@ def convertTemperatureDeltaForDisplay(temperatureDeltaCelsius: float, temperatur
     Converts the temperature delta to the appropriate unit for display based on the user's preference.
     """
     if temperatureUnit == TemperatureUnit.FAHRENHEIT:
-        return round(celsiusDeltaToFahrenheitDelta(temperatureDeltaCelsius), TEMPERATURE_SIG_DIGITS)
+        return round(celsiusDeltaToFahrenheitDelta(temperatureDeltaCelsius), DEFAULT_TEMPERATURE_SIG_DIGITS)
     elif temperatureUnit == TemperatureUnit.KELVIN:
-        return round(temperatureDeltaCelsius, TEMPERATURE_SIG_DIGITS)  # Delta is the same in Celsius and Kelvin
+        return round(temperatureDeltaCelsius, DEFAULT_TEMPERATURE_SIG_DIGITS)  # Delta is the same in Celsius and Kelvin
     return temperatureDeltaCelsius

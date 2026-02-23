@@ -7,14 +7,14 @@ from enums.ColormapEnum import Colormap
 class GuiController:
     def __init__(self, 
                  windowTitle: str = WINDOW_TITLE, 
-                 width: int = SENSOR_WIDTH, 
-                 height: int = SENSOR_HEIGHT, 
-                 scale: int = SCALE, 
-                 colormap: Colormap = COLORMAP, 
-                 contrast: float = CONTRAST, 
-                 blurRadius: int = BLUR_RADIUS, 
-                 threshold: int = THRESHOLD,
-                 temperatureUnitSymbol: str = "C"):
+                 width: int = DEFAULT_SENSOR_WIDTH_PX, 
+                 height: int = DEFAULT_SENSOR_HEIGHT_PX, 
+                 scale: int = DEFAULT_SCALE, 
+                 colormap: Colormap = DEFAULT_COLORMAP, 
+                 contrast: float = DEFAULT_CONTRAST, 
+                 blurRadius: int = DEFAULT_BLUR_RADIUS, 
+                 threshold: int = DEFAULT_THRESHOLD,
+                 temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL):
         # Passed parameters
         self.windowTitle = windowTitle
         self.width = width
@@ -31,17 +31,17 @@ class GuiController:
         self.scaledHeight = int(self.height*self.scale)
         
         # States
-        self.isHudVisible: bool = HUD_VISIBLE
-        self.isFullscreen: bool = FULLSCREEN
+        self.isHudVisible: bool = DEFAULT_HUD_VISIBLE
+        self.isFullscreen: bool = DEFAULT_FULLSCREEN
         self.isInverted: bool = False
         
         # Recording stats
-        self.recordingStartTime: str = RECORDING_START_TIME
-        self.last_snapshot_time: str = LAST_SNAPSHOT_TIME
-        self.recordingDuration: str = RECORDING_DURATION
+        self.recordingStartTime: str = DEFAULT_RECORDING_START_TIME
+        self.last_snapshot_time: str = DEFAULT_LAST_SNAPSHOT_TIME
+        self.recordingDuration: str = DEFAULT_RECORDING_DURATION
         
         # Other
-        self._font = FONT
+        self._font = DEFAULT_FONT
         
         # Initialize the GUI
         cv2.namedWindow(self.windowTitle, cv2.WINDOW_GUI_NORMAL)

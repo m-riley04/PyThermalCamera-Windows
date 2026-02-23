@@ -41,7 +41,7 @@ Tested on Windows 11 Pro (update 23H2).
 
 The following features have been implemented:
 
-<img align="right" src="media/colormaps.png">
+<img align="right" src="media/colormaps.png" alt="The colormaps supported">
 
 - Bicubic interpolation to scale the small 256*192 image to something more presentable! Available scaling multiplier range from 1-5 (Note: This will not auto change the window size on the Pi (openCV needs recompiling), however you can manually resize). Optional blur can be applied if you want to smooth out the pixels.
 - Fullscreen / Windowed mode (Note going back to windowed  from fullscreen does not seem to work on the Pi! OpenCV probably needs recompiling!).
@@ -89,9 +89,7 @@ If that is in order, the following command can be used to run the program:
 python src/main.py
 ```
 
-There are also optional flags/arguments that you can pass:
-
-- `--device [device_index]`: specifies the device to use based on it's index
+There are also optional flags/arguments that you can pass to help you choose different devices or models. To see them all and details, run the program with the `--help` flag.
 
 ### Running Calculation Tests
 
