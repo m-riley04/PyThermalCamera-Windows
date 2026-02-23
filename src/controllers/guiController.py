@@ -36,9 +36,9 @@ class GuiController:
         self.isInverted: bool = False
         
         # Recording stats
-        self.recordingStartTime: float = RECORDING_START_TIME
-        self.last_snapshot_time: str = LAST_SNAPSHOT_TIME
-        self.recordingDuration: str = RECORDING_DURATION
+        self.recordingStartTime: float = DEFAULT_RECORDING_START_TIME
+        self.last_snapshot_time: str = DEFAULT_LAST_SNAPSHOT_TIME
+        self.recordingDuration: str = DEFAULT_RECORDING_DURATION
         
         # Other
         self._font = DEFAULT_FONT

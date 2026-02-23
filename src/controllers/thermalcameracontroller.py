@@ -482,6 +482,10 @@ class ThermalCameraController:
 
                 # Find the average temperature in the frame
                 self._avgTemp = self.calculateAverageTemperature(thdata)
+                self._rawTemp = self.calculateRawTemperature(thdata) # also updates byte order detection
+                self._temp = self.calculateTemperature(thdata)
+                self._minTemp = self.calculateMinimumTemperature(thdata)
+                self._maxTemp = self.calculateMaximumTemperature(thdata)
 
                 displayTemp = convertTemperatureForDisplay(self._temp, self._temperatureUnit)
                 displayMinTemp = convertTemperatureForDisplay(self._minTemp, self._temperatureUnit)
