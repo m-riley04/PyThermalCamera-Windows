@@ -108,7 +108,7 @@ class ThermalCameraController:
                 "Using channel0 as MSB / channel1 as LSB for temperature decode."
             )
             self._didLogThermalByteOrder = True
-    
+
     @staticmethod
     def printBindings():
         """
@@ -126,7 +126,8 @@ class ThermalCameraController:
         print(f'{KEY_INVERT} : Invert ColorMap')
         print(f'{KEY_TOGGLE_HUD} : Toggle HUD')
         print(f'{KEY_TOGGLE_TEMP_UNIT} : Toggle Celsius/Fahrenheit')
- 
+        print(f'{KEY_QUIT} : Quit')
+
     @staticmethod
     def printCredits():
         """
@@ -227,7 +228,7 @@ class ThermalCameraController:
             
         
         ### RECORDING/MEDIA CONTROLS
-        if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start reording
+        if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start recording
             self._videoOut = self._record()
             self._isRecording = DEFAULT_RECORDING_STATE
             self._guiController.recordingStartTime = time.time()
@@ -278,7 +279,7 @@ class ThermalCameraController:
 
     def calculateRawTemperature(self, thdata: NDArray) -> float:
         """
-        Calculates the raw temperature of the frame.
+        Calculates the raw temperature of the center of the frame.
         """
         if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
             return DEFAULT_TEMPERATURE_RAW
@@ -478,17 +479,6 @@ class ThermalCameraController:
                             f"thdata shape: {thdata.shape if thdata is not None else 'None'}")
                         self._didLogFrameLayoutWarning = True
                     continue
-                
-                # Now parse the data from the bottom frame and convert to temp!
-                # Grab data from the center pixel...
-                self._rawTemp = self.calculateRawTemperature(thdata)
-                self._temp = self.calculateTemperature(thdata)
-
-                # Calculate minimum temperature
-                self._minTemp = self.calculateMinimumTemperature(thdata)
-                
-                # Calculate maximum temperature
-                self._maxTemp = self.calculateMaximumTemperature(thdata)
 
                 # Find the average temperature in the frame
                 self._avgTemp = self.calculateAverageTemperature(thdata)
