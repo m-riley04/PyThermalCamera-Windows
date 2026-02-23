@@ -206,51 +206,30 @@ class ThermalCameraController:
 
     def calculateRawTemperature(self, thdata):
         """
-        Calculates the raw temperature of the frame.
+        Calculates the raw temperature of the center of the frame.
         """
-        hi = int(thdata[96][128][0])
-        lo = int(thdata[96][128][1])
-        lo = lo * 256
-        return hi+lo
+        return thdata[self._height // 2][self._width // 2]
 
     def calculateAverageTemperature(self, thdata):
         """
         Calculates the average temperature of the frame.
         """
-        loavg = int(thdata[...,1].mean())
-        hiavg = int(thdata[...,0].mean())
-        loavg = loavg * 256
-        return round(self.normalizeTemperature(loavg+hiavg), TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(thdata.mean()), TEMPERATURE_SIG_DIGITS)
 
     def calculateMinimumTemperature(self, thdata):
         """
         Calculates the minimum temperature of the frame.
         """
-        # Find the min temperature in the frame
-        lomin = int(thdata[...,1].min())
-        posmin = int(thdata[...,1].argmin())
-        
-        # Since argmax returns a linear index, convert back to row and col
-        self._lcol, self._lrow = divmod(posmin, self._width)
-        himin = int(thdata[self._lcol][self._lrow][0])
-        lomin = lomin * 256
-        
-        return round(self.normalizeTemperature(himin+lomin), TEMPERATURE_SIG_DIGITS)
+        self._lcol, self._lrow = np.unravel_index(np.argmin(thdata), thdata.shape)       
+        return round(self.normalizeTemperature(thdata[self._lcol][self._lrow]), TEMPERATURE_SIG_DIGITS)
 
     def calculateMaximumTemperature(self, thdata):
         """
         Calculates the maximum temperature of the frame.
         """
         # Find the max temperature in the frame
-        lomax = int(thdata[...,1].max())
-        posmax = int(thdata[...,1].argmax())
-
-        # Since argmax returns a linear index, convert back to row and col
-        self._mcol, self._mrow = divmod(posmax, self._width)
-        himax = int(thdata[self._mcol][self._mrow][0])
-        lomax = lomax * 256
-        
-        return round(self.normalizeTemperature(himax+lomax), TEMPERATURE_SIG_DIGITS)
+        self._mcol, self._mrow = np.unravel_index(np.argmax(thdata), thdata.shape)       
+        return round(self.normalizeTemperature(thdata[self._mcol][self._mrow]), TEMPERATURE_SIG_DIGITS)
 
     def run(self):
         """
@@ -260,35 +239,43 @@ class ThermalCameraController:
         self._cap = cv2.VideoCapture(self._deviceIndex)
 
         """
-        MAJOR CHANGE: Do NOT convert to RGB. For some reason, this breaks the frame temperature data on TS001.
-        Originally, it was the opposite: https://stackoverflow.com/questions/63108721/opencv-setting-videocap-property-to-cap-prop-convert-rgb-generates-weird-boolean
+        disable automatic YUY2 -> RGB conversion in OpenCV
         """
-        #cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        self._cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
 
         # Start main runtime loop
         while(self._cap.isOpened()):
             ret, frame = self._cap.read()
             if ret == True:
                 # Split frame into two parts: image data and thermal data
-                imdata, thdata = np.array_split(frame, 2)
+                # We use frame[0] since on Windows this is returned as a 2D array with size [1][<number of pixels>]
+                # Other OS are untested
+                imdata, thdata = np.array_split(frame[0], 2)
+
+                # First convert the image to YUV
+                yuv_pic = np.frombuffer(imdata, dtype=np.uint8).reshape((self._height, self._width, 2))
+                # Next convert to RGB
+                rgb_pic = cv2.cvtColor(yuv_pic, cv2.COLOR_YUV2RGB_YUY2)
+                # Assemble the thermal data
+                thm_pic = np.frombuffer(thdata, dtype=np.uint16).reshape((self._height, self._width))
                 
                 # Now parse the data from the bottom frame and convert to temp!
                 # Grab data from the center pixel...
-                self._rawTemp = self.calculateRawTemperature(thdata)
-                self._temp = self.calculateTemperature(thdata)
+                self._rawTemp = self.calculateRawTemperature(thm_pic)
+                self._temp = self.calculateTemperature(thm_pic)
 
                 # Calculate minimum temperature
-                self._minTemp = self.calculateMinimumTemperature(thdata)
+                self._minTemp = self.calculateMinimumTemperature(thm_pic)
                 
                 # Calculate maximum temperature
-                self._maxTemp = self.calculateMaximumTemperature(thdata)
+                self._maxTemp = self.calculateMaximumTemperature(thm_pic)
 
                 # Find the average temperature in the frame
-                self._avgTemp = self.calculateAverageTemperature(thdata)
+                self._avgTemp = self.calculateAverageTemperature(thm_pic)
                 
                 # Draw GUI elements
                 heatmap = self._guiController.drawGUI(
-                    imdata=imdata,
+                    imdata=rgb_pic,
                     temp=self._temp,
                     maxTemp=self._maxTemp,
                     minTemp=self._minTemp,
