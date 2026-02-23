@@ -7,7 +7,7 @@ Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the prog
 '''
 
 from argparse import ArgumentParser
-from defaults.parsers.cli_parser import parseDeviceInfoFromArgs
+from parsers.cli_parser import parseDeviceInfoFromArgs
 from defaults.values import DEFAULT_DEVICE_FPS, DEFAULT_DEVICE_NAME, DEFAULT_DEVICE_TEMP_MAX_C, DEFAULT_DEVICE_TEMP_MIN_C, DEFAULT_SENSOR_HEIGHT_PX, DEFAULT_SENSOR_WIDTH_PX, DEFAULT_VIDEO_DEVICE_INDEX
 from controllers.thermalcameracontroller import ThermalCameraController
 
