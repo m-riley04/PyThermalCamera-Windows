@@ -34,7 +34,7 @@ class ThermalCameraController:
         self._lrow: int = 0
         
         # Media/recording init
-        self._isRecording = RECORDING
+        self._isRecording = not RECORDING
         self._mediaOutputPath: str = mediaOutputPath
         
         if not os.path.exists(self._mediaOutputPath):
@@ -155,7 +155,7 @@ class ThermalCameraController:
             
         
         ### RECORDING/MEDIA CONTROLS
-        if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start reording
+        if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start recording
             self._videoOut = self._record()
             self._isRecording = RECORDING
             self._guiController.recordingStartTime = time.time()
