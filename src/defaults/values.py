@@ -1,7 +1,6 @@
 from defaults.gui_values import *
 from os import getcwd
 
-
 ### MAIN CONSTANTS
 DEFAULT_VIDEO_DEVICE_INDEX: int = 0
 

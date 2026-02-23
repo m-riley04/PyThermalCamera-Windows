@@ -10,14 +10,17 @@ from controllers.guiController import GuiController
 from enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
 from helpers.conversions import convertTemperatureDeltaForDisplay, convertTemperatureForDisplay
 from models.deviceinfo import DeviceInfo
+from models.envinfo import EnvInfo
 
 class ThermalCameraController:
     def __init__(self, 
                  device: DeviceInfo = DeviceInfo(), 
+                 environment: EnvInfo = EnvInfo(),
                  mediaOutputPath: str = DEFAULT_MEDIA_OUTPUT_PATH,
                  temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS):
         # Parameters init
         self._deviceInfo: DeviceInfo = device
+        self._env: EnvInfo = environment
         self._temperatureUnit: TemperatureUnit = temperatureUnit
         self._temperatureUnitSymbol: str = getSymbolFromTempUnit(self._temperatureUnit)
 
@@ -405,13 +408,17 @@ class ThermalCameraController:
         if sys.platform.startswith("win"):
             backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
         else:
-            backends = [cv2.CAP_ANY]
+            backends = [cv2.CAP_ANY] # TODO: maybe do better env checks for linux/pi?
 
         lastOpenedCap: cv2.VideoCapture | None = None
         lastBackend: int | None = None
 
         for backend in backends:
-            cap = cv2.VideoCapture(self._deviceInfo.index, backend)
+            if self._env.isPi:
+                # On the Pi, we have to use the V4L2 backend to get raw frames
+                cap = cv2.VideoCapture(f"/dev/video{self._deviceInfo.index}", backend)
+            else:
+                cap = cv2.VideoCapture(self._deviceInfo.index, backend)
             if cap is None or not cap.isOpened():
                 continue
 
