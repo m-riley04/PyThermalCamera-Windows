@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 
 from defaults.values import DEFAULT_DEVICE_FPS, DEFAULT_DEVICE_NAME, DEFAULT_DEVICE_TEMP_ACCURACY_C, DEFAULT_DEVICE_TEMP_MAX_C, DEFAULT_DEVICE_TEMP_MIN_C, DEFAULT_SENSOR_HEIGHT_PX, DEFAULT_SENSOR_WIDTH_PX, DEFAULT_VIDEO_DEVICE_INDEX
 from enums.DeviceModelEnum import DeviceModel
+from helpers.deviceHelper import getAllVideoDevices
 from models.deviceinfo import DeviceInfo
 
 def createParser() -> ArgumentParser:
@@ -22,7 +23,7 @@ def createParser() -> ArgumentParser:
         , default=DEFAULT_VIDEO_DEVICE_INDEX
         , help=f"VideoDevice index from OpenCV. Default is {DEFAULT_VIDEO_DEVICE_INDEX}.")
 
-    parserSubcommands = parser.add_subparsers(title="subcommands")
+    parserSubcommands = parser.add_subparsers(title="subcommands", dest="subcommand")
         
     # Model subcommand setup
     parserModel = parserSubcommands.add_parser(
@@ -86,6 +87,12 @@ def createParser() -> ArgumentParser:
         , type=str
         , default=DEFAULT_DEVICE_NAME
         , help=f"Name of the device. Default is {DEFAULT_DEVICE_NAME}.")
+
+    parserList = parserSubcommands.add_parser(
+        name="list"
+        , help="Lists all available video devices and their indices."
+        , description="Lists all available video devices and their indices. This can be used to determine the correct device index to use with the --device-index argument.")
+    parserList.set_defaults(func=lambda args: print(getAllVideoDevices()))
 
     return parser
 
