@@ -36,6 +36,7 @@ class GuiController:
         self.isFullscreen: bool = DEFAULT_FULLSCREEN
         self.isInverted: bool = False
         self.showRawThermalData: bool = False
+        self.showPiP: bool = True
         
         # Recording stats
         self.recordingStartTime: float = DEFAULT_RECORDING_START_TIME
@@ -60,12 +61,17 @@ class GuiController:
         """
         Draws the GUI elements on the thermal image.
         """
-        # If showing raw thermal data, skip processing and just upscale it
+        # Swap data sources if showRawThermalData is enabled
+        # This helps if the camera backend is showing the wrong half of the frame
         if self.showRawThermalData:
-            return self._displayRawThermalData(thdata)
+            display_data = thdata
+            pip_data = imdata
+        else:
+            display_data = imdata
+            pip_data = thdata
         
         # Apply affects
-        img = self.applyEffects(imdata=imdata)
+        img = self.applyEffects(imdata=display_data)
         
         # Apply inversion
         if self.isInverted == True:
@@ -95,6 +101,10 @@ class GuiController:
         # Update recording stats
         if isRecording == True:
             self.updateRecordingStats()
+        
+        # Show PiP with the alternate data source for comparison if enabled
+        if self.showPiP:
+            img = self._overlayRawThermalData(img, pip_data, self.showRawThermalData)
 
         return img
 
@@ -397,14 +407,22 @@ class GuiController:
 
         return img
     
-    def _displayRawThermalData(self, thdata):
+    def _overlayRawThermalData(self, img, thdata, is_swapped):
         """
-        Displays the raw thermal data in its native YUY2 format for inspection.
-        This shows what the camera is actually sending.
+        Overlays the alternate data source as a picture-in-picture window on the main image.
+        This shows what the camera is actually sending alongside the processed view.
+        When swapped, shows the normal view in PiP while thermal data is the main display.
         """
         if thdata is None or thdata.size == 0:
-            # Return a black image if no thermal data
-            return np.zeros((self.scaledHeight, self.scaledWidth, 3), dtype=np.uint8)
+            return img
+        
+        # Calculate PiP window size (roughly 1/3 of the main image)
+        pip_width = self.scaledWidth // 3
+        pip_height = self.scaledHeight // 3
+        
+        # Position in bottom-right corner with some padding
+        x_offset = self.scaledWidth - pip_width - 10
+        y_offset = self.scaledHeight - pip_height - 10
         
         # Try to display as YUY2 (convert from raw bytes)
         try:
@@ -414,23 +432,48 @@ class GuiController:
             thermal_bgr = cv2.cvtColor(thermal_yuyv, cv2.COLOR_YUV2BGR_YUYV)
         except cv2.error:
             # Fallback: stack the channels to see the raw data
-            thermal_bgr = cv2.cvtColor(thdata.astype(np.uint8), cv2.COLOR_GRAY2BGR) if thdata.ndim == 2 else thdata.astype(np.uint8)
+            if thdata.ndim == 2:
+                thermal_bgr = cv2.cvtColor(thdata.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+            else:
+                thermal_bgr = thdata.astype(np.uint8)
+                if thermal_bgr.shape[2] == 1:
+                    thermal_bgr = cv2.cvtColor(thermal_bgr, cv2.COLOR_GRAY2BGR)
         
-        # Upscale using bicubic interpolation
-        thermal_upscaled = cv2.resize(thermal_bgr, (self.scaledWidth, self.scaledHeight), interpolation=cv2.INTER_CUBIC)
+        # Resize to PiP dimensions
+        pip_img = cv2.resize(thermal_bgr, (pip_width, pip_height), interpolation=cv2.INTER_CUBIC)
         
         # Apply contrast
-        thermal_display = cv2.convertScaleAbs(thermal_upscaled, alpha=self.contrast)
+        pip_img = cv2.convertScaleAbs(pip_img, alpha=self.contrast)
         
-        # Add label
+        # Draw border around PiP
+        cv2.rectangle(img, (x_offset - 2, y_offset - 2), 
+                     (x_offset + pip_width + 2, y_offset + pip_height + 2), 
+                     (255, 255, 255), 2)
+        
+        # Label changes based on whether we're swapped or not
+        label = 'NORMAL VIEW' if is_swapped else 'THERMAL DATA'
+        
+        # Add label above PiP
         cv2.putText(
-            thermal_display,
-            'RAW THERMAL DATA (YUY2)',
-            (10, 30),
+            img,
+            label,
+            (x_offset, y_offset - 8),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 255),
+            0.4,
+            (0, 0, 0),
             2,
             cv2.LINE_AA)
+        cv2.putText(
+            img,
+            label,
+            (x_offset, y_offset - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (0, 255, 255),
+            1,
+            cv2.LINE_AA)
         
-        return thermal_display
+        # Overlay the PiP onto the main image
+        img[y_offset:y_offset + pip_height, x_offset:x_offset + pip_width] = pip_img
+        
+        return img

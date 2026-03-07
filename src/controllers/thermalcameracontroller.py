@@ -138,7 +138,8 @@ class ThermalCameraController:
         print(f'{KEY_INVERT} : Invert ColorMap')
         print(f'{KEY_TOGGLE_HUD} : Toggle HUD')
         print(f'{KEY_TOGGLE_TEMP_UNIT} : Toggle Celsius/Fahrenheit')
-        print(f'{KEY_TOGGLE_OUTPUT_MODE} : Toggle Output Mode (Processed/Raw Thermal Data)')
+        print(f'{KEY_TOGGLE_OUTPUT_MODE} : Swap Frame Halves (fixes wrong half displaying)')
+        print(f'{KEY_TOGGLE_PIP} : Toggle Picture-in-Picture Window')
         print(f'{KEY_QUIT} : Quit')
 
     @staticmethod
@@ -241,6 +242,9 @@ class ThermalCameraController:
         
         if keyPress == ord(KEY_TOGGLE_OUTPUT_MODE): # Toggle between processed and raw thermal output
             self._guiController.showRawThermalData = not self._guiController.showRawThermalData
+        
+        if keyPress == ord(KEY_TOGGLE_PIP): # Toggle PiP window visibility
+            self._guiController.showPiP = not self._guiController.showPiP
             
         
         ### RECORDING/MEDIA CONTROLS
@@ -509,12 +513,16 @@ class ThermalCameraController:
                         self._didLogFrameLayoutWarning = True
                     continue
 
+                # Determine which data to use for temperature calculations
+                # If swapped, the thermal data is in what we're calling 'imdata'
+                temp_data = imdata if self._guiController.showRawThermalData else thdata
+                
                 # Find the average temperature in the frame
-                self._avgTemp = self.calculateAverageTemperature(thdata)
-                self._rawTemp = self.calculateRawTemperature(thdata) # also updates byte order detection
-                self._temp = self.calculateTemperature(thdata)
-                self._minTemp = self.calculateMinimumTemperature(thdata)
-                self._maxTemp = self.calculateMaximumTemperature(thdata)
+                self._avgTemp = self.calculateAverageTemperature(temp_data)
+                self._rawTemp = self.calculateRawTemperature(temp_data) # also updates byte order detection
+                self._temp = self.calculateTemperature(temp_data)
+                self._minTemp = self.calculateMinimumTemperature(temp_data)
+                self._maxTemp = self.calculateMaximumTemperature(temp_data)
 
                 displayTemp = convertTemperatureForDisplay(self._temp, self._temperatureUnit)
                 displayMinTemp = convertTemperatureForDisplay(self._minTemp, self._temperatureUnit)
