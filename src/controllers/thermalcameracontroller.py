@@ -452,12 +452,15 @@ class ThermalCameraController:
 
             # Prime the capture and validate the layout.
             ok = False
-            for _ in range(5):
+            for attempt in range(5):
                 ret, frame = cap.read()
                 if not ret:
+                    print(f"[DEBUG] Backend {backend} attempt {attempt}: failed to read frame")
                     continue
+                print(f"[DEBUG] Backend {backend} attempt {attempt}: frame shape={frame.shape}, dtype={frame.dtype}")
                 imdata, thdata = self._splitFrameData(frame, logWarnings=False)
                 if imdata is not None and thdata is not None and thdata.ndim == 3 and thdata.shape[2] == 2:
+                    print(f"[DEBUG] Backend {backend} SUCCESS: thermal data shape={thdata.shape}")
                     ok = True
                     break
 
