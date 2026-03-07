@@ -5,7 +5,7 @@ from helpers.deviceHelper import getAllVideoDevices
 
 # Initialize argument parsing
 parser = argparse.ArgumentParser()
-parser.add_argument("--device", type=int, default=0, help=f"VideoDevice index. Currently selectable: {getAllVideoDevices()}")
+parser.add_argument("--device", type=int, default=0, help=f"VideoDevice index from OpenCV")
 args = parser.parse_args()
 	
 # Check if device specified

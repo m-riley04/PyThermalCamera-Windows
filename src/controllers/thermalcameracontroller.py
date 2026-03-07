@@ -138,6 +138,7 @@ class ThermalCameraController:
         print(f'{KEY_INVERT} : Invert ColorMap')
         print(f'{KEY_TOGGLE_HUD} : Toggle HUD')
         print(f'{KEY_TOGGLE_TEMP_UNIT} : Toggle Celsius/Fahrenheit')
+        print(f'{KEY_TOGGLE_OUTPUT_MODE} : Toggle Output Mode (Processed/Raw Thermal Data)')
         print(f'{KEY_QUIT} : Quit')
 
     @staticmethod
@@ -237,6 +238,9 @@ class ThermalCameraController:
                 self._guiController.colormap = Colormap(self._guiController.colormap.value + 1)
         if keyPress == ord(KEY_INVERT): # Cycle through color maps
             self._guiController.isInverted = not self._guiController.isInverted
+        
+        if keyPress == ord(KEY_TOGGLE_OUTPUT_MODE): # Toggle between processed and raw thermal output
+            self._guiController.showRawThermalData = not self._guiController.showRawThermalData
             
         
         ### RECORDING/MEDIA CONTROLS
@@ -521,6 +525,7 @@ class ThermalCameraController:
                 # Draw GUI elements
                 heatmap = self._guiController.drawGUI(
                     imdata=imdata,
+                    thdata=thdata,
                     temp=displayTemp,
                     maxTemp=displayMaxTemp,
                     minTemp=displayMinTemp,

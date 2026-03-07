@@ -1,5 +1,6 @@
 import time
 import cv2
+import numpy as np
 
 from defaults.values import *
 from enums.ColormapEnum import Colormap
@@ -34,6 +35,7 @@ class GuiController:
         self.isHudVisible: bool = DEFAULT_HUD_VISIBLE
         self.isFullscreen: bool = DEFAULT_FULLSCREEN
         self.isInverted: bool = False
+        self.showRawThermalData: bool = False
         
         # Recording stats
         self.recordingStartTime: float = DEFAULT_RECORDING_START_TIME
@@ -54,10 +56,14 @@ class GuiController:
         self.recordingDuration = (time.time() - self.recordingStartTime)
         self.recordingDuration = time.strftime("%H:%M:%S", time.gmtime(self.recordingDuration)) 
         
-    def drawGUI(self, imdata, temp, averageTemp, maxTemp, minTemp, labelThreshold, isRecording, mrow, mcol, lrow, lcol):
+    def drawGUI(self, imdata, thdata, temp, averageTemp, maxTemp, minTemp, labelThreshold, isRecording, mrow, mcol, lrow, lcol):
         """
         Draws the GUI elements on the thermal image.
         """
+        # If showing raw thermal data, skip processing and just upscale it
+        if self.showRawThermalData:
+            return self._displayRawThermalData(thdata)
+        
         # Apply affects
         img = self.applyEffects(imdata=imdata)
         
@@ -390,3 +396,41 @@ class GuiController:
             img = cv2.blur(img,(self.blurRadius, self.blurRadius))
 
         return img
+    
+    def _displayRawThermalData(self, thdata):
+        """
+        Displays the raw thermal data in its native YUY2 format for inspection.
+        This shows what the camera is actually sending.
+        """
+        if thdata is None or thdata.size == 0:
+            # Return a black image if no thermal data
+            return np.zeros((self.scaledHeight, self.scaledWidth, 3), dtype=np.uint8)
+        
+        # Try to display as YUY2 (convert from raw bytes)
+        try:
+            # Treat the 2-channel thermal data as YUYV packed format
+            thermal_yuyv = thdata.astype(np.uint8)
+            # Convert YUY2 to BGR for display (this will show the raw colors)
+            thermal_bgr = cv2.cvtColor(thermal_yuyv, cv2.COLOR_YUV2BGR_YUYV)
+        except cv2.error:
+            # Fallback: stack the channels to see the raw data
+            thermal_bgr = cv2.cvtColor(thdata.astype(np.uint8), cv2.COLOR_GRAY2BGR) if thdata.ndim == 2 else thdata.astype(np.uint8)
+        
+        # Upscale using bicubic interpolation
+        thermal_upscaled = cv2.resize(thermal_bgr, (self.scaledWidth, self.scaledHeight), interpolation=cv2.INTER_CUBIC)
+        
+        # Apply contrast
+        thermal_display = cv2.convertScaleAbs(thermal_upscaled, alpha=self.contrast)
+        
+        # Add label
+        cv2.putText(
+            thermal_display,
+            'RAW THERMAL DATA (YUY2)',
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA)
+        
+        return thermal_display
