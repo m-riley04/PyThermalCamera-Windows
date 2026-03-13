@@ -1,5 +1,5 @@
-from enums.DeviceModelEnum import DeviceModel
-from models.deviceinfo import DeviceInfo
+from src.enums.DeviceModelEnum import DeviceModel
+from src.models.deviceinfo import DeviceInfo
 
 # Represents the specifications for each supported device model. 
 # These can be used to initialize the program with the correct settings for each device.

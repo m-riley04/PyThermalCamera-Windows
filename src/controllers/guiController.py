@@ -2,8 +2,8 @@ import time
 import cv2
 import numpy as np
 
-from defaults.values import *
-from enums.ColormapEnum import Colormap
+from src.defaults.values import *
+from src.enums.ColormapEnum import Colormap
 
 class GuiController:
     def __init__(self, 

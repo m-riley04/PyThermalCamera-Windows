@@ -1,5 +1,5 @@
-from defaults.values import DEFAULT_TEMPERATURE_SIG_DIGITS
-from enums.TemperatureUnitEnum import TemperatureUnit
+from src.defaults.values import DEFAULT_TEMPERATURE_SIG_DIGITS
+from src.enums.TemperatureUnitEnum import TemperatureUnit
 
 # NOTE: most of these conversions are from celsius to x. This is because the data is stored as celsius.
 

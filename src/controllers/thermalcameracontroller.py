@@ -2,15 +2,15 @@ import cv2, time, os, sys
 import numpy as np
 from numpy.typing import NDArray
 
-from defaults.values import *
-from defaults.keybinds import *
+from src.defaults.values import *
+from src.defaults.keybinds import *
 
-from enums.ColormapEnum import Colormap
-from controllers.guiController import GuiController
-from enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
-from helpers.conversions import convertTemperatureDeltaForDisplay, convertTemperatureForDisplay
-from models.deviceinfo import DeviceInfo
-from models.envinfo import EnvInfo
+from src.enums.ColormapEnum import Colormap
+from src.controllers.guiController import GuiController
+from src.enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
+from src.helpers.conversions import convertTemperatureDeltaForDisplay, convertTemperatureForDisplay
+from src.models.deviceinfo import DeviceInfo
+from src.models.envinfo import EnvInfo
 
 class ThermalCameraController:
     def __init__(self, 

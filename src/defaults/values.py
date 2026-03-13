@@ -1,4 +1,4 @@
-from defaults.gui_values import *
+from src.defaults.gui_values import *
 from os import getcwd
 
 ### MAIN CONSTANTS

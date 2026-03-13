@@ -6,11 +6,11 @@ A Python program to read, parse and display thermal data from the Topdon TC001 T
 Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the program for Windows and the TS001.
 '''
 
-from enums.DeviceModelEnum import DeviceModel
-from helpers.deviceHelper import getInfoByModel, getModelByName, printAllVideoDevices
-from parsers.cli_parser import createParser, parseDeviceInfoFromArgs
-from defaults.values import DEFAULT_VIDEO_DEVICE_INDEX
-from controllers.thermalcameracontroller import ThermalCameraController
+from src.enums.DeviceModelEnum import DeviceModel
+from src.helpers.deviceHelper import getInfoByModel, getModelByName, printAllVideoDevices
+from src.parsers.cli_parser import createParser, parseDeviceInfoFromArgs
+from src.defaults.values import DEFAULT_VIDEO_DEVICE_INDEX
+from src.controllers.thermalcameracontroller import ThermalCameraController
 
 # Initialize argument parsing
 parser = createParser()

@@ -1,5 +1,5 @@
 from cv2 import FONT_HERSHEY_SIMPLEX
-from enums.ColormapEnum import Colormap
+from src.enums.ColormapEnum import Colormap
 
 ### GUI CONSTANTS
 WINDOW_TITLE: str = "Thermal Camera"

@@ -1,8 +1,8 @@
 import cv2
 
-from defaults.devices import SUPPORTED_DEVICES
-from enums.DeviceModelEnum import DeviceModel
-from models.deviceinfo import DeviceInfo
+from src.defaults.devices import SUPPORTED_DEVICES
+from src.enums.DeviceModelEnum import DeviceModel
+from src.models.deviceinfo import DeviceInfo
 
 def getAllVideoDevices() -> list[int]:
 	"""

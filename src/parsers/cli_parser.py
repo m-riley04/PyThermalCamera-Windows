@@ -2,10 +2,10 @@
 
 from argparse import ArgumentParser
 
-from defaults.values import DEFAULT_DEVICE_FPS, DEFAULT_DEVICE_NAME, DEFAULT_DEVICE_TEMP_ACCURACY_C, DEFAULT_DEVICE_TEMP_MAX_C, DEFAULT_DEVICE_TEMP_MIN_C, DEFAULT_SENSOR_HEIGHT_PX, DEFAULT_SENSOR_WIDTH_PX, DEFAULT_VIDEO_DEVICE_INDEX
-from enums.DeviceModelEnum import DeviceModel
-from helpers.deviceHelper import getAllVideoDevices
-from models.deviceinfo import DeviceInfo
+from src.defaults.values import DEFAULT_DEVICE_FPS, DEFAULT_DEVICE_NAME, DEFAULT_DEVICE_TEMP_ACCURACY_C, DEFAULT_DEVICE_TEMP_MAX_C, DEFAULT_DEVICE_TEMP_MIN_C, DEFAULT_SENSOR_HEIGHT_PX, DEFAULT_SENSOR_WIDTH_PX, DEFAULT_VIDEO_DEVICE_INDEX
+from src.enums.DeviceModelEnum import DeviceModel
+from src.helpers.deviceHelper import getAllVideoDevices
+from src.models.deviceinfo import DeviceInfo
 
 def createParser() -> ArgumentParser:
     """
