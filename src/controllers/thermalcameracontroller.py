@@ -2,6 +2,7 @@ import cv2, time, os, sys
 import numpy as np
 from numpy.typing import NDArray
 
+from enums.ThermalByteOrderEnum import ThermalByteOrder
 from src.defaults.values import *
 from src.defaults.keybinds import *
 
@@ -55,7 +56,7 @@ class ThermalCameraController:
         self._videoOut = None
         self._didLogFrameLayoutWarning = False
         self._captureBackend = None
-        self._thermalByteOrder: str | None = None  # "lsb0" (byte0 is LSB) or "lsb1" (byte1 is LSB)
+        self._thermalByteOrder: ThermalByteOrder = ThermalByteOrder.LSB_BYTE_0  # "lsb0" (byte0 is LSB) or "lsb1" (byte1 is LSB)
         self._didLogThermalByteOrder = False
 
     def _rawFromBytes(self, byte0: int, byte1: int) -> int:
@@ -64,7 +65,7 @@ class ThermalCameraController:
         The original TC001 script treats channel 0 as the LSB and channel 1 as the MSB.
         Some Windows capture paths/backends can swap this ordering, so we allow autodetection.
         """
-        if self._thermalByteOrder == "lsb1":
+        if self._thermalByteOrder == ThermalByteOrder.LSB_BYTE_1:
             return int(byte1) + (int(byte0) << 8)
         return int(byte0) + (int(byte1) << 8)
     
@@ -82,11 +83,8 @@ class ThermalCameraController:
         If both are unreasonable (e.g. synthetic test data), we keep the default.
         """
 
-        if self._thermalByteOrder is not None:
-            return
-
         if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
-            self._thermalByteOrder = "lsb0"
+            self._thermalByteOrder = ThermalByteOrder.LSB_BYTE_0
             return
 
         centerRow = thdata.shape[0] // 2
@@ -100,11 +98,11 @@ class ThermalCameraController:
         t1 = float(self.normalizeTemperature(raw_lsb1))
 
         if self.is_plausible_celsius(t1) and not self.is_plausible_celsius(t0):
-            self._thermalByteOrder = "lsb1"
+            self._thermalByteOrder = ThermalByteOrder.LSB_BYTE_1
         else:
-            self._thermalByteOrder = "lsb0"
+            self._thermalByteOrder = ThermalByteOrder.LSB_BYTE_0
 
-        if self._thermalByteOrder == "lsb1" and not self._didLogThermalByteOrder:
+        if self._thermalByteOrder == ThermalByteOrder.LSB_BYTE_1 and not self._didLogThermalByteOrder:
             print(
                 "Detected swapped thermal byte order (Windows capture). "
                 "Using channel0 as MSB / channel1 as LSB for temperature decode."
