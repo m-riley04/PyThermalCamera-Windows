@@ -6,10 +6,9 @@ A Python program to read, parse and display thermal data from the Topdon TC001 T
 Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the program for Windows and the TS001.
 '''
 
-from src.helpers.deviceHelper import printAllVideoDevices
 from src.parsers.cli_parser import createParser
 from src.defaults.values import DEFAULT_VIDEO_DEVICE_INDEX
-from src.defaults.devices import loadDeviceFromJson
+from src.defaults.devices import loadDeviceFromJson, printAllSupportedDevices
 from src.controllers.thermalcameracontroller import ThermalCameraController
 
 # Initialize argument parsing
@@ -17,8 +16,6 @@ parser = createParser()
 args = parser.parse_args()
 
 def main():
-    print(args)
-
     subcommand = getattr(args, 'subcommand', None)
     if subcommand is None:
         parser.print_help()
@@ -26,8 +23,7 @@ def main():
 
     device_info = None
     if subcommand == "list":
-        # This case is handled by the set_defaults func of the list subcommand, so we just return after it executes.
-        printAllVideoDevices()
+        printAllSupportedDevices()
         return
     
     if subcommand == "device":

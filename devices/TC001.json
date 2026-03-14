@@ -27,9 +27,8 @@
             "detect_min_m": 80,
             "detect_max_m": 320,
             "measurement_accuracy_c": 2,
-            "measurement_accuracy_pct": 2,
-            "ir_resolution_x": 256,
-            "ir_resolution_y": 192,
+            "ir_resolution_width_px": 256,
+            "ir_resolution_height_px": 192,
             "focal_length_mm": 3.2,
             "fov_h_deg": 56,
             "fov_v_deg": 42,
@@ -114,6 +113,9 @@
         "Cleaning Cloth",
         "User Manual"
     ],
+    "misc": {
+        
+    },
     "pricing": {
         "regular_price_usd": 289.00,
         "sale_price_usd": 230.00,

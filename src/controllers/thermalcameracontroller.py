@@ -14,7 +14,7 @@ from src.models.envinfo import EnvInfo
 
 class ThermalCameraController:
     def __init__(self, 
-                 device: DeviceInfo = DeviceInfo(),
+                 device: DeviceInfo,
                  device_index: int = DEFAULT_VIDEO_DEVICE_INDEX,
                  environment: EnvInfo = EnvInfo(),
                  mediaOutputPath: str = DEFAULT_MEDIA_OUTPUT_PATH,
@@ -46,8 +46,8 @@ class ThermalCameraController:
         
         # GUI Init
         self._guiController = GuiController(
-            width=self._deviceInfo.width,
-            height=self._deviceInfo.height,
+            width=self._deviceInfo.specs.imaging.ir_resolution_width_px,
+            height=self._deviceInfo.specs.imaging.ir_resolution_height_px,
             temperatureUnitSymbol=self._temperatureUnitSymbol)
         
         # OpenCV init
@@ -73,7 +73,7 @@ class ThermalCameraController:
         Checks if a temperature is within a plausible range for Celsius temperatures that the device should be able to read.
         Used primarily for autodetecting byte order and errors in data.
         """
-        return self._deviceInfo.temp_min_c <= temp <= self._deviceInfo.temp_max_c
+        return self._deviceInfo.specs.functions.measurement_range_min_c <= temp <= self._deviceInfo.specs.functions.measurement_range_max_c
 
     def _maybeDetectThermalByteOrder(self, thdata: NDArray) -> None:
         """Detect swapped byte order once using a plausibility check.
@@ -111,15 +111,14 @@ class ThermalCameraController:
             )
             self._didLogThermalByteOrder = True
 
-    @staticmethod
-    def printInfo():
+    def printInfo(self):
         """
         Print info about the program and device.
         """
         print('== Thermal Camera Controller ==\n')
-        print(f'Device Name: {DEFAULT_DEVICE_NAME}')
-        print(f'Device Index: {DEFAULT_VIDEO_DEVICE_INDEX}')
-        print(f"Raspberry Pi Detected: {EnvInfo().isPi}")
+        print(f'Device Name: {self._deviceInfo.name}')
+        print(f'Device Index: {self._deviceIndex}')
+        print(f"Raspberry Pi Detected: {self._env.isPi}")
 
     @staticmethod
     def printBindings():
@@ -381,13 +380,13 @@ class ThermalCameraController:
                 self._didLogFrameLayoutWarning = True
             return None, None
 
-        totalRows = self._deviceInfo.height * 2
+        totalRows = self._deviceInfo.specs.imaging.ir_resolution_height_px * 2
 
         # Some Linux/V4L2 paths can expose packed YUY2 as a 2D uint16 image
         # where each uint16 encodes the two bytes we need for thermal decoding.
         if parsedFrame.ndim == 2 and parsedFrame.dtype == np.uint16:
             rows, cols = parsedFrame.shape
-            if rows >= totalRows and cols >= self._deviceInfo.width:
+            if rows >= totalRows and cols >= self._deviceInfo.specs.imaging.ir_resolution_width_px:
                 parsedFrame = parsedFrame.view(np.uint8).reshape(rows, cols, 2)
 
         # Some backends return flattened buffers (often with padded row stride).
@@ -397,13 +396,13 @@ class ThermalCameraController:
                 bytesPerRow = flattened.size // totalRows
                 if bytesPerRow % 2 == 0:
                     pixelsPerRow = bytesPerRow // 2
-                    if pixelsPerRow >= self._deviceInfo.width:
+                    if pixelsPerRow >= self._deviceInfo.specs.imaging.ir_resolution_width_px:
                         parsedFrame = flattened.reshape((totalRows, pixelsPerRow, 2))
-                        parsedFrame = parsedFrame[:, :self._deviceInfo.width, :]
+                        parsedFrame = parsedFrame[:, :self._deviceInfo.specs.imaging.ir_resolution_width_px, :]
 
         if parsedFrame.ndim == 3 and parsedFrame.shape[0] >= totalRows:
-            imageData = parsedFrame[:self._deviceInfo.height, :, :]
-            thermalData = parsedFrame[self._deviceInfo.height:self._deviceInfo.height * 2, :, :]
+            imageData = parsedFrame[:self._deviceInfo.specs.imaging.ir_resolution_height_px, :, :]
+            thermalData = parsedFrame[self._deviceInfo.specs.imaging.ir_resolution_height_px:self._deviceInfo.specs.imaging.ir_resolution_height_px * 2, :, :]
             return imageData, thermalData
 
         if parsedFrame.ndim == 3 and parsedFrame.shape[0] >= 2:
@@ -421,9 +420,9 @@ class ThermalCameraController:
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUY2'))
         # Keep raw bytes; many platforms treat any non-zero as True.
         cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._deviceInfo.width)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._deviceInfo.height * 2)
-        cap.set(cv2.CAP_PROP_FPS, self._deviceInfo.fps)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._deviceInfo.specs.imaging.ir_resolution_width_px)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._deviceInfo.specs.imaging.ir_resolution_height_px * 2)
+        cap.set(cv2.CAP_PROP_FPS, self._deviceInfo.specs.imaging.frame_rate_hz)
 
     def _openCapture(self) -> cv2.VideoCapture:
         """Opens the video capture and verifies we can read raw (2-channel) frames.

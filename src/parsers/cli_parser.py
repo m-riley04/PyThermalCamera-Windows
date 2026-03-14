@@ -1,9 +1,7 @@
 
 
 from argparse import ArgumentParser
-
 from src.defaults.values import DEFAULT_VIDEO_DEVICE_INDEX
-from src.helpers.deviceHelper import getAllVideoDevices
 
 def createParser() -> ArgumentParser:
     """
@@ -32,10 +30,9 @@ def createParser() -> ArgumentParser:
         , type=str
         , help="Path to a device JSON file to load. See the devices/ folder for examples.")
 
-    parserList = parserSubcommands.add_parser(
+    parserSubcommands.add_parser(
         name="list"
         , help="Lists all available video devices and their indices."
         , description="Lists all available video devices and their indices. This can be used to determine the correct device index to use with the --device-index argument.")
-    parserList.set_defaults(func=lambda args: print(getAllVideoDevices()))
 
     return parser
