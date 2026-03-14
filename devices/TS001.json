@@ -1,0 +1,121 @@
+{
+    "id": "TS001",
+    "name": "TOPDON TS001 Thermal Camera",
+    "description": "Long-focus thermal imaging camera for Android smartphones/tablets and Windows laptops via USB-C connection with adjustable 9mm lens. 256x192 resolution.",
+    "manufacturer": "TOPDON",
+    "model": "TS001",
+    "specifications": {
+        "hardware": {
+            "system": null,
+            "operating_system": "Android/Windows",
+            "battery_capacity": null,
+            "display_screen": null,
+            "voltage_v": 5,
+            "charging_time": null,
+            "battery_life": null,
+            "storage": null,
+            "led_flashlight": false
+        },
+        "imaging": {
+            "calib_temp_min_m": 0.15,
+            "calib_temp_max_m": 5.0,
+            "id_min_m": 0.1,
+            "id_max_m": 50,
+            "recog_min_m": 50,
+            "recog_max_m": 200,
+            "detect_min_m": 200,
+            "detect_max_m": 500,
+            "measurement_accuracy_c": 3,
+            "measurement_accuracy_pct": 3,
+            "ir_resolution_x": 256,
+            "ir_resolution_y": 192,
+            "focal_length_mm": 9.0,
+            "fov_h_deg": 13,
+            "fov_v_deg": 10,
+            "spectral_range_min_um": 8,
+            "spectral_range_max_um": 14,
+            "netd_mk": 40,
+            "temperature_resolution_c": 0.1,
+            "frame_rate_hz": 25
+        },
+        "functions": {
+            "measurement_range_min_c": -20,
+            "measurement_range_max_c": 550,
+            "professional_function": "Mechanical & Electrical",
+            "digital_zoom": false,
+            "image_modes": ["Thermal Imaging", "Dual Fusion"],
+            "measuring_modes": ["Dot", "Line", "Plane"],
+            "video_recording": true,
+            "video_transfer_via_usb": true,
+            "wifi": false,
+            "pc_analysis_software": true,
+            "visible_light_camera": false,
+            "pseudo_color_palettes": [
+                "Iron Red",
+                "White Hot",
+                "Black Hot",
+                "Arctic",
+                "Rainbow",
+                "Red Hot",
+                "Medical",
+                "Jungle",
+                "Golden Red",
+                "Shimmer",
+                "Aureate"
+            ],
+            "pseudo_color_palette_count": 11,
+            "custom_color_palette": true,
+            "high_low_temp_alarms": true,
+            "auto_power_off": false,
+            "temperature_units": ["Celsius", "Fahrenheit"]
+        },
+        "other": {
+            "operating_temp_min_c": -10,
+            "operating_temp_max_c": 50,
+            "tripod_screw_hole": false,
+            "drop_test_height_m": 2.0,
+            "ip_rating": null,
+            "certifications": ["UN38.3", "DGM", "CE", "FCC", "RoHS", "UKCA"],
+            "gross_weight_g": 220,
+            "device_weight_g": 45,
+            "package_size_l_mm": 70,
+            "package_size_w_mm": 46,
+            "package_size_h_mm": 28,
+            "languages_supported_count": 13,
+            "languages_supported": [
+                "English", "Chinese", "Japanese", "French", "Spanish",
+                "Italian", "Portuguese", "German", "Polish", "Russian",
+                "Dutch", "Czech", "Ukrainian"
+            ]
+        }
+    },
+    "features": [
+        "Adjustable 9mm lens for near (0.1m) to far (500m) imaging",
+        "256x192 IR resolution",
+        "25Hz infrared refresh rate",
+        "Wide temperature range: -20°C to 550°C",
+        "±3°C or ±3% measurement accuracy",
+        "0.1°C temperature resolution",
+        "11 pseudo color palettes with custom mode",
+        "Swipeable color bar for custom temperature range spotlight",
+        "Dual Fusion image mode",
+        "Dot, line, and plane measuring modes",
+        "High/low temperature warning alarms",
+        "USB-C plug-and-play for Android and Windows",
+        "Observation and measurement modes"
+    ],
+    "in_the_box": [
+        "TS001 Thermal Camera",
+        "Carrying Bag",
+        "50cm Extension Cable",
+        "Cleaning Cloth",
+        "Phone Mount Holder",
+        "User Manual"
+    ],
+    "pricing": {
+        "regular_price_usd": 349.00,
+        "sale_price_usd": 329.00,
+        "pricing_date_ymd": "2026-03-13"
+    },
+    "warranty_years": 1
+}

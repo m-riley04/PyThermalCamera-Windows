@@ -6,10 +6,10 @@ A Python program to read, parse and display thermal data from the Topdon TC001 T
 Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the program for Windows and the TS001.
 '''
 
-from src.enums.DeviceModelEnum import DeviceModel
-from src.helpers.deviceHelper import getInfoByModel, getModelByName, printAllVideoDevices
-from src.parsers.cli_parser import createParser, parseDeviceInfoFromArgs
+from src.helpers.deviceHelper import printAllVideoDevices
+from src.parsers.cli_parser import createParser
 from src.defaults.values import DEFAULT_VIDEO_DEVICE_INDEX
+from src.defaults.devices import loadDeviceFromJson
 from src.controllers.thermalcameracontroller import ThermalCameraController
 
 # Initialize argument parsing
@@ -30,15 +30,12 @@ def main():
         printAllVideoDevices()
         return
     
-    if subcommand == "manual":
-        # parse info from args
-        device_info = parseDeviceInfoFromArgs(args)
-    elif subcommand == "model":
-        modelName = getattr(args, 'model', None)
-        if modelName is None:
-            print("Error: Model name is required when using the model subcommand.")
+    if subcommand == "device":
+        json_path = getattr(args, 'json_path', None)
+        if json_path is None:
+            print("Error: A JSON file path is required when using the device subcommand.")
             return
-        device_info = getInfoByModel(getModelByName(modelName) or DeviceModel.TC001)
+        device_info = loadDeviceFromJson(json_path)
 
     # get device index
     device_index = getattr(args, 'device_index', DEFAULT_VIDEO_DEVICE_INDEX)
