@@ -56,16 +56,16 @@ class ThermalCameraController:
         self._videoOut = None
         self._didLogFrameLayoutWarning = False
         self._captureBackend = None
-        self._thermalByteOrder: ThermalByteOrder = ThermalByteOrder.LSB_BYTE_0  # "lsb0" (byte0 is LSB) or "lsb1" (byte1 is LSB)
         self._didLogThermalByteOrder = False
 
     def _rawFromBytes(self, byte0: int, byte1: int) -> int:
-        """Combine two uint8 bytes into a 16-bit raw temperature sample.
+        """
+        Combine two uint8 bytes into a 16-bit raw temperature sample.
 
         The original TC001 script treats channel 0 as the LSB and channel 1 as the MSB.
         Some Windows capture paths/backends can swap this ordering, so we allow autodetection.
         """
-        if self._thermalByteOrder == ThermalByteOrder.LSB_BYTE_1:
+        if self._deviceInfo.other.thermal_byte_order == ThermalByteOrder.LSB_BYTE_1:
             return int(byte1) + (int(byte0) << 8)
         return int(byte0) + (int(byte1) << 8)
     
@@ -77,14 +77,15 @@ class ThermalCameraController:
         return self._deviceInfo.specs.functions.measurement_range_min_c <= temp <= self._deviceInfo.specs.functions.measurement_range_max_c
 
     def _maybeDetectThermalByteOrder(self, thdata: NDArray) -> None:
-        """Detect swapped byte order once using a plausibility check.
+        """
+        Detect swapped byte order once using a plausibility check.
 
         We choose the ordering whose *center pixel* temperature lands in a reasonable range.
         If both are unreasonable (e.g. synthetic test data), we keep the default.
         """
 
         if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
-            self._thermalByteOrder = ThermalByteOrder.LSB_BYTE_0
+            self._deviceInfo.other.thermal_byte_order = ThermalByteOrder.LSB_BYTE_0
             return
 
         centerRow = thdata.shape[0] // 2
@@ -98,11 +99,11 @@ class ThermalCameraController:
         t1 = float(self.normalizeTemperature(raw_lsb1))
 
         if self.is_plausible_celsius(t1) and not self.is_plausible_celsius(t0):
-            self._thermalByteOrder = ThermalByteOrder.LSB_BYTE_1
+            self._deviceInfo.other.thermal_byte_order = ThermalByteOrder.LSB_BYTE_1
         else:
-            self._thermalByteOrder = ThermalByteOrder.LSB_BYTE_0
+            self._deviceInfo.other.thermal_byte_order = ThermalByteOrder.LSB_BYTE_0
 
-        if self._thermalByteOrder == ThermalByteOrder.LSB_BYTE_1 and not self._didLogThermalByteOrder:
+        if self._deviceInfo.other.thermal_byte_order == ThermalByteOrder.LSB_BYTE_1 and not self._didLogThermalByteOrder:
             print(
                 "Detected swapped thermal byte order (Windows capture). "
                 "Using channel0 as MSB / channel1 as LSB for temperature decode."
@@ -301,7 +302,7 @@ class ThermalCameraController:
         if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
             return DEFAULT_TEMPERATURE_RAW
 
-        self._maybeDetectThermalByteOrder(thdata)
+        #self._maybeDetectThermalByteOrder(thdata)
 
         centerRow = thdata.shape[0] // 2
         centerCol = thdata.shape[1] // 2
@@ -316,7 +317,7 @@ class ThermalCameraController:
         if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
             return DEFAULT_TEMPERATURE_AVG
 
-        self._maybeDetectThermalByteOrder(thdata)
+        #self._maybeDetectThermalByteOrder(thdata)
         b0avg = int(thdata[..., 0].mean())
         b1avg = int(thdata[..., 1].mean())
         raw = self._rawFromBytes(b0avg, b1avg)
@@ -332,7 +333,7 @@ class ThermalCameraController:
         # Since argmax returns a linear index, convert back to row and col
         width = thdata.shape[1]
         self._lcol, self._lrow = divmod(posmin, width)
-        self._maybeDetectThermalByteOrder(thdata)
+        #self._maybeDetectThermalByteOrder(thdata)
         b0 = int(thdata[self._lcol, self._lrow, 0])
         b1 = int(thdata[self._lcol, self._lrow, 1])
         raw = self._rawFromBytes(b0, b1)
@@ -350,7 +351,7 @@ class ThermalCameraController:
         # Since argmax returns a linear index, convert back to row and col
         width = thdata.shape[1]
         self._mcol, self._mrow = divmod(posmax, width)
-        self._maybeDetectThermalByteOrder(thdata)
+        #self._maybeDetectThermalByteOrder(thdata)
         b0 = int(thdata[self._mcol, self._mrow, 0])
         b1 = int(thdata[self._mcol, self._mrow, 1])
         raw = self._rawFromBytes(b0, b1)
@@ -423,7 +424,8 @@ class ThermalCameraController:
         cap.set(cv2.CAP_PROP_FPS, self._deviceInfo.specs.imaging.frame_rate_hz)
 
     def _openCapture(self) -> cv2.VideoCapture:
-        """Opens the video capture and verifies we can read raw (2-channel) frames.
+        """
+        Opens the video capture and verifies we can read raw (2-channel) frames.
 
         On Windows especially, some backends ignore CAP_PROP_CONVERT_RGB and return 3-channel BGR,
         which destroys the thermal data. We probe a few backends and only accept one that yields

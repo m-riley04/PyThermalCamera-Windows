@@ -114,7 +114,7 @@
         "User Manual"
     ],
     "misc": {
-        
+        "thermal_byte_order": "LSB_BYTE_0"
     },
     "pricing": {
         "regular_price_usd": 289.00,

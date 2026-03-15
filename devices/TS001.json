@@ -104,7 +104,7 @@
         "Observation and measurement modes"
     ],
     "misc": {
-        
+        "thermal_byte_order": "LSB_BYTE_0"
     },
     "in_the_box": [
         "TS001 Thermal Camera",
