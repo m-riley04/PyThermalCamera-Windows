@@ -1,11 +1,8 @@
-import cv2, time, os, sys
-import numpy as np
+import cv2, time, os, sys, numpy as np
 from numpy.typing import NDArray
-
-from enums.ThermalByteOrderEnum import ThermalByteOrder
+from src.enums.ThermalByteOrderEnum import ThermalByteOrder
 from src.defaults.values import *
 from src.defaults.keybinds import *
-
 from src.enums.ColormapEnum import Colormap
 from src.controllers.guiController import GuiController
 from src.enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
@@ -65,7 +62,7 @@ class ThermalCameraController:
         The original TC001 script treats channel 0 as the LSB and channel 1 as the MSB.
         Some Windows capture paths/backends can swap this ordering, so we allow autodetection.
         """
-        if self._deviceInfo.other.thermal_byte_order == ThermalByteOrder.LSB_BYTE_1:
+        if self._deviceInfo.misc.thermal_byte_order == ThermalByteOrder.LSB_BYTE_1:
             return int(byte1) + (int(byte0) << 8)
         return int(byte0) + (int(byte1) << 8)
     
@@ -75,40 +72,6 @@ class ThermalCameraController:
         Used primarily for autodetecting byte order and errors in data.
         """
         return self._deviceInfo.specs.functions.measurement_range_min_c <= temp <= self._deviceInfo.specs.functions.measurement_range_max_c
-
-    def _maybeDetectThermalByteOrder(self, thdata: NDArray) -> None:
-        """
-        Detect swapped byte order once using a plausibility check.
-
-        We choose the ordering whose *center pixel* temperature lands in a reasonable range.
-        If both are unreasonable (e.g. synthetic test data), we keep the default.
-        """
-
-        if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
-            self._deviceInfo.other.thermal_byte_order = ThermalByteOrder.LSB_BYTE_0
-            return
-
-        centerRow = thdata.shape[0] // 2
-        centerCol = thdata.shape[1] // 2
-        b0 = int(thdata[centerRow, centerCol, 0])
-        b1 = int(thdata[centerRow, centerCol, 1])
-
-        raw_lsb0 = int(b0) + (int(b1) << 8)
-        raw_lsb1 = int(b1) + (int(b0) << 8)
-        t0 = float(self.normalizeTemperature(raw_lsb0))
-        t1 = float(self.normalizeTemperature(raw_lsb1))
-
-        if self.is_plausible_celsius(t1) and not self.is_plausible_celsius(t0):
-            self._deviceInfo.other.thermal_byte_order = ThermalByteOrder.LSB_BYTE_1
-        else:
-            self._deviceInfo.other.thermal_byte_order = ThermalByteOrder.LSB_BYTE_0
-
-        if self._deviceInfo.other.thermal_byte_order == ThermalByteOrder.LSB_BYTE_1 and not self._didLogThermalByteOrder:
-            print(
-                "Detected swapped thermal byte order (Windows capture). "
-                "Using channel0 as MSB / channel1 as LSB for temperature decode."
-            )
-            self._didLogThermalByteOrder = True
 
     def printInfo(self):
         """
@@ -281,7 +244,7 @@ class ThermalCameraController:
         cv2.imwrite(f"{self._mediaOutputPath}/{self._deviceInfo.name}-{currentTimeStr}.png", img)
         return self._guiController.last_snapshot_time
 
-    def normalizeTemperature(self, rawTemp: float, d: int = 64, c: float = 273.15) -> float:
+    def normalizeTemperature(self, rawTemp: float, d: int = 64, c: float = DEFAULT_NORMALIZATION_OFFSET) -> float:
         """
         Normalizes/converts the raw temperature data using the formula found by LeoDJ.
         Link: https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/
@@ -293,7 +256,7 @@ class ThermalCameraController:
         Calculates the (normalized) temperature of the frame.
         """
         raw = self.calculateRawTemperature(thdata)
-        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def calculateRawTemperature(self, thdata: NDArray) -> float:
         """
@@ -301,8 +264,6 @@ class ThermalCameraController:
         """
         if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
             return DEFAULT_TEMPERATURE_RAW
-
-        #self._maybeDetectThermalByteOrder(thdata)
 
         centerRow = thdata.shape[0] // 2
         centerCol = thdata.shape[1] // 2
@@ -317,11 +278,10 @@ class ThermalCameraController:
         if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
             return DEFAULT_TEMPERATURE_AVG
 
-        #self._maybeDetectThermalByteOrder(thdata)
         b0avg = int(thdata[..., 0].mean())
         b1avg = int(thdata[..., 1].mean())
         raw = self._rawFromBytes(b0avg, b1avg)
-        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def calculateMinimumTemperature(self, thdata: NDArray) -> float:
         """
@@ -333,12 +293,11 @@ class ThermalCameraController:
         # Since argmax returns a linear index, convert back to row and col
         width = thdata.shape[1]
         self._lcol, self._lrow = divmod(posmin, width)
-        #self._maybeDetectThermalByteOrder(thdata)
         b0 = int(thdata[self._lcol, self._lrow, 0])
         b1 = int(thdata[self._lcol, self._lrow, 1])
         raw = self._rawFromBytes(b0, b1)
 
-        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def calculateMaximumTemperature(self, thdata: NDArray) -> float:
         """
@@ -351,12 +310,11 @@ class ThermalCameraController:
         # Since argmax returns a linear index, convert back to row and col
         width = thdata.shape[1]
         self._mcol, self._mrow = divmod(posmax, width)
-        #self._maybeDetectThermalByteOrder(thdata)
         b0 = int(thdata[self._mcol, self._mrow, 0])
         b1 = int(thdata[self._mcol, self._mrow, 1])
         raw = self._rawFromBytes(b0, b1)
 
-        return round(self.normalizeTemperature(raw), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def _splitFrameData(self, frame: NDArray, *, logWarnings: bool = True) -> tuple[NDArray | None, NDArray | None]:
         """

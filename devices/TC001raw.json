@@ -1,7 +1,7 @@
 {
-    "id": "TC001",
-    "name": "TOPDON TC001 Thermal Camera",
-    "description": "Portable thermal imaging camera for Android smartphones/tablets and Windows laptops via USB-C connection. 256x192 resolution.",
+    "id": "TC001raw",
+    "name": "TOPDON TC001 Thermal Camera (raw)",
+    "description": "The TC001 camera, but uses raw readings instead of normalizing. This is for a specific fix on some TC001 units.",
     "manufacturer": "TOPDON",
     "model": "TC001",
     "specifications": {
@@ -115,7 +115,7 @@
     ],
     "misc": {
         "thermal_byte_order": "LSB_BYTE_0",
-        "normalization_offset": 273.15
+        "normalization_offset": 0.0
     },
     "pricing": {
         "regular_price_usd": 289.00,

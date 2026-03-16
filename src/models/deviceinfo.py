@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from src.defaults.values import DEFAULT_NORMALIZATION_OFFSET
 from src.enums.ThermalByteOrderEnum import ThermalByteOrder
 
 @dataclass
@@ -164,6 +165,7 @@ class DeviceInfoSpecs:
 @dataclass
 class DeviceInfoOther:
     thermal_byte_order: ThermalByteOrder | None = None
+    normalization_offset: float = DEFAULT_NORMALIZATION_OFFSET
 
     @staticmethod
     def createFromJson(data: dict) -> 'DeviceInfoOther':
@@ -172,10 +174,13 @@ class DeviceInfoOther:
         if thermal_byte_order_str is not None:
             try:
                 thermal_byte_order = ThermalByteOrder[thermal_byte_order_str]
-            except ValueError:
+            except KeyError:
                 print(f"Warning: Invalid thermal byte order string in JSON: {thermal_byte_order_str}. Expected 'lsb0' or 'lsb1'. Defaulting to None.")
+
+        normalization_offset = float(data.get("normalization_offset", DEFAULT_NORMALIZATION_OFFSET))
         return DeviceInfoOther(
             thermal_byte_order=thermal_byte_order
+            , normalization_offset=normalization_offset
         )
 
 @dataclass
@@ -189,7 +194,7 @@ class DeviceInfo:
     description: str | None
     manufacturer: str | None
     specs: DeviceInfoSpecs | None = None
-    other: DeviceInfoOther | None = None
+    misc: DeviceInfoOther | None = None
 
     @staticmethod
     def createFromJson(path: str) -> 'DeviceInfo':
@@ -207,13 +212,13 @@ class DeviceInfo:
         specs_im: dict = specs_data.get("imaging", {})
         specs_fn: dict = specs_data.get("functions", {})
         specs_ot: dict = specs_data.get("other", {})
-        ot: dict = data.get("other", {})
+        mi: dict = data.get("misc", {})
 
         hardware = DeviceInfoSpecsHardware.createFromJson(specs_hw)
         imaging = DeviceInfoSpecsImaging.createFromJson(specs_im)
         functions = DeviceInfoSpecsFunctions.createFromJson(specs_fn)
         specsOther = DeviceInfoSpecsOther.createFromJson(specs_ot)
-        other = DeviceInfoOther.createFromJson(ot)
+        misc = DeviceInfoOther.createFromJson(mi)
 
         # load the basic info
         id = data["id"]
@@ -235,5 +240,5 @@ class DeviceInfo:
             description=description,
             manufacturer=manufacturer,
             specs=specs,
-            other=other
+            misc=misc
         )
