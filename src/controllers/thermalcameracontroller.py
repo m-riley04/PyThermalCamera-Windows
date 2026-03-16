@@ -1,3 +1,5 @@
+import logging
+
 import cv2, time, os, sys, numpy as np
 from numpy.typing import NDArray
 from src.enums.ThermalByteOrderEnum import ThermalByteOrder
@@ -13,16 +15,24 @@ from src.models.envinfo import EnvInfo
 class ThermalCameraController:
     def __init__(self, 
                  device: DeviceInfo,
+                 logger: logging.Logger,
                  device_index: int = DEFAULT_VIDEO_DEVICE_INDEX,
                  environment: EnvInfo = EnvInfo(),
                  mediaOutputPath: str = DEFAULT_MEDIA_OUTPUT_PATH,
                  temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS):
+        self.logger = logger
+        self.logger.info(f"Initializing ThermalCameraController for device '{device.name}' at index {device_index}")
+        
         # Parameters init
         self._deviceInfo: DeviceInfo = device
         self._deviceIndex: int = device_index
         self._env: EnvInfo = environment
         self._temperatureUnit: TemperatureUnit = temperatureUnit
         self._temperatureUnitSymbol: str = getSymbolFromTempUnit(self._temperatureUnit)
+
+        # Log if rpi is detected
+        if self._env.isPi:
+            self.logger.info("Detected Raspberry Pi environment.")
 
         # Calculated values init
         self._rawTemp = DEFAULT_TEMPERATURE_RAW
@@ -40,6 +50,7 @@ class ThermalCameraController:
         self._mediaOutputPath: str = mediaOutputPath
         
         if not os.path.exists(self._mediaOutputPath):
+            self.logger.info(f"Media output path '{self._mediaOutputPath}' does not exist. Creating directory.")
             os.makedirs(self._mediaOutputPath)
         
         # GUI Init
@@ -55,6 +66,9 @@ class ThermalCameraController:
         self._captureBackend = None
         self._didLogThermalByteOrder = False
 
+        self.logger.info("ThermalCameraController initialized successfully")
+        self.logger.debug(f"Device Info: {self._deviceInfo}")
+
     def _rawFromBytes(self, byte0: int, byte1: int) -> int:
         """
         Combine two uint8 bytes into a 16-bit raw temperature sample.
@@ -62,6 +76,7 @@ class ThermalCameraController:
         The original TC001 script treats channel 0 as the LSB and channel 1 as the MSB.
         Some Windows capture paths/backends can swap this ordering, so we allow autodetection.
         """
+        self.logger.debug(f"Combining bytes into raw temperature with byte0={byte0}, byte1={byte1}, thermal_byte_order={self._deviceInfo.misc.thermal_byte_order}")
         if self._deviceInfo.misc.thermal_byte_order == ThermalByteOrder.LSB_BYTE_1:
             return int(byte1) + (int(byte0) << 8)
         return int(byte0) + (int(byte1) << 8)
@@ -71,16 +86,16 @@ class ThermalCameraController:
         Checks if a temperature is within a plausible range for Celsius temperatures that the device should be able to read.
         Used primarily for autodetecting byte order and errors in data.
         """
-        return self._deviceInfo.specs.functions.measurement_range_min_c <= temp <= self._deviceInfo.specs.functions.measurement_range_max_c
-
-    def printInfo(self):
-        """
-        Print info about the program and device.
-        """
-        print('== Thermal Camera Controller ==\n')
-        print(f'Device Name: {self._deviceInfo.name}')
-        print(f'Device Index: {self._deviceIndex}')
-        print(f"Raspberry Pi Detected: {self._env.isPi}")
+        isPlausible = self._deviceInfo.specs.functions.measurement_range_min_c <= temp <= self._deviceInfo.specs.functions.measurement_range_max_c
+        if not isPlausible and not self._didLogThermalByteOrder:
+            self.logger.warning(
+                f"Temperature {temp}°C is outside plausible range for device '{self._deviceInfo.name}' "
+                f"({self._deviceInfo.specs.functions.measurement_range_min_c}°C to {self._deviceInfo.specs.functions.measurement_range_max_c}°C). "
+                "This may indicate an incorrect thermal byte order or an issue with the data. "
+                "If you are seeing incorrect temperatures, try changing the byte order setting for this device."
+            )
+            self._didLogThermalByteOrder = True
+        return isPlausible
 
     @staticmethod
     def printBindings():
@@ -214,7 +229,7 @@ class ThermalCameraController:
             self._isRecording = DEFAULT_RECORDING_STATE
             self._guiController.recordingStartTime = time.time()
             
-        if keyPress == ord(KEY_STOP): # Stop reording
+        if keyPress == ord(KEY_STOP): # Stop recording
             self._isRecording = not DEFAULT_RECORDING_STATE
             self._guiController.recordingDuration = DEFAULT_RECORDING_DURATION
 
@@ -223,13 +238,15 @@ class ThermalCameraController:
 
     def _record(self):
         """
-        STart recording video to file.
+        Start recording video to file.
         """
+        self.logger.info("Starting recording...")
+
         currentTimeStr = time.strftime("%Y%m%d--%H%M%S")
         #do NOT use mp4 here, it is flakey!
         self._videoOut = cv2.VideoWriter(
             f"{self._mediaOutputPath}/{currentTimeStr}-output.avi",
-            cv2.VideoWriter_fourcc(*'XVID'),
+            cv2.VideoWriter_fourcc(*'YUY2'),
             self._deviceInfo.fps,
             (self._guiController.scaledWidth, self._guiController.scaledHeight))
         return self._videoOut
@@ -238,17 +255,22 @@ class ThermalCameraController:
         """
         Takes a snapshot of the current frame.
         """
+        self.logger.info("Taking snapshot...")
         #I would put colons in here, but it Win throws a fit if you try and open them!
         currentTimeStr = time.strftime("%Y%m%d-%H%M%S") 
         self._guiController.last_snapshot_time = time.strftime("%H:%M:%S")
-        cv2.imwrite(f"{self._mediaOutputPath}/{self._deviceInfo.name}-{currentTimeStr}.png", img)
+        if not cv2.imwrite(f"{self._mediaOutputPath}/{self._deviceInfo.name}-{currentTimeStr}.png", img):
+            self.logger.error("Failed to save snapshot.")
+        else:
+            self.logger.info(f"Snapshot saved to {self._mediaOutputPath}/{self._deviceInfo.name}-{currentTimeStr}.png")
         return self._guiController.last_snapshot_time
 
-    def normalizeTemperature(self, rawTemp: float, d: int = 64, c: float = DEFAULT_NORMALIZATION_OFFSET) -> float:
+    def normalizeTemperature(self, rawTemp: float, d: int = DEFAULT_NORMALIZATION_DIVISOR, c: float = DEFAULT_NORMALIZATION_OFFSET) -> float:
         """
         Normalizes/converts the raw temperature data using the formula found by LeoDJ.
         Link: https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/
         """
+        self.logger.debug(f"Normalizing temperature with rawTemp={rawTemp}, rawTemp/d={rawTemp/d}, d={d}, c={c}")
         return (rawTemp/d) - c
 
     def calculateTemperature(self, thdata: NDArray) -> float:
@@ -262,7 +284,9 @@ class ThermalCameraController:
         """
         Calculates the raw temperature of the center of the frame.
         """
+        self.logger.debug(f"Calculating raw temperature from thermal data with shape {thdata.shape} and dtype {thdata.dtype}")
         if thdata.size == 0 or thdata.shape[0] == 0 or thdata.shape[1] == 0:
+            self.logger.warning("Thermal data is empty or has invalid shape. Returning default raw temperature.")
             return DEFAULT_TEMPERATURE_RAW
 
         centerRow = thdata.shape[0] // 2
@@ -275,7 +299,9 @@ class ThermalCameraController:
         """
         Calculates the average temperature of the frame.
         """
+        self.logger.debug(f"Calculating average temperature from thermal data with shape {thdata.shape} and dtype {thdata.dtype}")
         if thdata is None or thdata.size == 0 or thdata.ndim < 3 or thdata.shape[2] < 2:
+            self.logger.warning("Thermal data is empty or has invalid shape. Returning default average temperature.")
             return DEFAULT_TEMPERATURE_AVG
 
         b0avg = int(thdata[..., 0].mean())
@@ -287,6 +313,8 @@ class ThermalCameraController:
         """
         Calculates the minimum temperature of the frame.
         """
+        self.logger.debug(f"Calculating minimum temperature from thermal data with shape {thdata.shape} and dtype {thdata.dtype}")
+
         # Find the min temperature in the frame
         posmin = int(thdata[...,1].argmin())
         
@@ -303,6 +331,8 @@ class ThermalCameraController:
         """
         Calculates the maximum temperature of the frame.
         """
+        self.logger.debug(f"Calculating maximum temperature from thermal data with shape {thdata.shape} and dtype {thdata.dtype}")
+
         # Find the max temperature in the frame
         lomax = int(thdata[...,1].max())
         posmax = int(thdata[...,1].argmax())
@@ -320,7 +350,9 @@ class ThermalCameraController:
         """
         Splits frame into visible-image and thermal-data halves, handling backend-specific layouts.
         """
+        self.logger.debug(f"Splitting frame data with shape {frame.shape} and dtype {frame.dtype}")
         if frame is None or frame.size == 0:
+            self.logger.warning("Received empty frame. Cannot split frame data.")
             return None, None
 
         parsedFrame = frame
@@ -329,7 +361,7 @@ class ThermalCameraController:
         # Fail fast with a clear warning rather than producing nonsense temperatures.
         if parsedFrame.ndim == 3 and parsedFrame.shape[2] != 2:
             if logWarnings and not self._didLogFrameLayoutWarning:
-                print(
+                self.logger.warning(
                     "OpenCV returned a converted frame (not raw YUY2). "
                     f"shape={parsedFrame.shape}, dtype={parsedFrame.dtype}. "
                     "Thermal bytes are not available; try a different backend (DSHOW vs MSMF) or disable RGB conversion."
@@ -367,13 +399,15 @@ class ThermalCameraController:
             return imageData, thermalData
 
         if logWarnings and not self._didLogFrameLayoutWarning:
-            print(f"Unsupported frame layout from OpenCV: shape={parsedFrame.shape}, dtype={parsedFrame.dtype}")
+            self.logger.warning(f"Unsupported frame layout from OpenCV: shape={parsedFrame.shape}, dtype={parsedFrame.dtype}")
             self._didLogFrameLayoutWarning = True
 
         return None, None
 
     def _configureCapture(self, cap: cv2.VideoCapture) -> None:
         """Apply capture properties required to preserve thermal bytes."""
+        self.logger.info(f"Configuring video capture with backend {self._captureBackend} to preserve thermal data")
+
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUY2'))
         # Keep raw bytes; many platforms treat any non-zero as True.
         cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
@@ -389,6 +423,8 @@ class ThermalCameraController:
         which destroys the thermal data. We probe a few backends and only accept one that yields
         a splittable frame with a 2-channel layout.
         """
+        self.logger.info("Opening video capture and searching for a backend that provides raw thermal data frames")
+
         backends: list[int]
         if sys.platform.startswith("win"):
             backends = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
@@ -420,12 +456,12 @@ class ThermalCameraController:
             for attempt in range(5):
                 ret, frame = cap.read()
                 if not ret:
-                    print(f"[DEBUG] Backend {backend} attempt {attempt}: failed to read frame")
+                    self.logger.debug(f"Backend {backend} attempt {attempt}: failed to read frame")
                     continue
-                print(f"[DEBUG] Backend {backend} attempt {attempt}: frame shape={frame.shape}, dtype={frame.dtype}")
+                self.logger.debug(f"Backend {backend} attempt {attempt}: frame shape={frame.shape}, dtype={frame.dtype}")
                 imdata, thdata = self._splitFrameData(frame, logWarnings=False)
                 if imdata is not None and thdata is not None and thdata.ndim == 3 and thdata.shape[2] == 2:
-                    print(f"[DEBUG] Backend {backend} SUCCESS: thermal data shape={thdata.shape}")
+                    self.logger.debug(f"Backend {backend} SUCCESS: thermal data shape={thdata.shape}")
                     ok = True
                     break
 
@@ -448,14 +484,18 @@ class ThermalCameraController:
         """
         Runs the main runtime loop for the program.
         """
+        self.logger.info("Beginning ThermalCameraController run.")
+        
         # Initialize video
         self._cap = self._openCapture()
         if self._cap is None or not self._cap.isOpened():
+            self.logger.critical(f"Failed to open video capture on device index {self._deviceIndex}. No backends produced a usable raw frame.")
             raise RuntimeError(f"Failed to open video device index {self._deviceIndex}")
         # Ensure our settings are applied even if the backend changes behavior after opening.
         self._configureCapture(self._cap)
 
         # Start main runtime loop
+        self.logger.info("Starting main runtime loop")
         while(self._cap.isOpened()):
             ret, frame = self._cap.read()
             if ret == True:
@@ -463,7 +503,7 @@ class ThermalCameraController:
                 imdata, thdata = self._splitFrameData(frame)
                 if imdata is None or thdata is None or thdata.size == 0:
                     if not self._didLogFrameLayoutWarning:
-                        print(
+                        self.logger.warning(
                             "Failed to split frame data into image and thermal components. "
                             f"Frame shape: {frame.shape}, imdata shape: {imdata.shape if imdata is not None else 'None'}, "
                             f"thdata shape: {thdata.shape if thdata is not None else 'None'}")
@@ -510,6 +550,7 @@ class ThermalCameraController:
                 keyPress = cv2.waitKey(KEY_PRESS_DELAY) & 0xFF
                 if keyPress == ord(KEY_QUIT):
                     # Check for recording and close out
+                    self.logger.info("Quit key pressed. Exiting main loop.")
                     if self._isRecording == True:
                         self._videoOut.release()
                     return

@@ -182,6 +182,9 @@ class DeviceInfoOther:
             thermal_byte_order=thermal_byte_order
             , normalization_offset=normalization_offset
         )
+    
+    def __str__(self):
+        return f"DeviceInfoOther(\nthermal_byte_order={self.thermal_byte_order}\n, normalization_offset={self.normalization_offset})"
 
 @dataclass
 class DeviceInfo:
@@ -242,3 +245,6 @@ class DeviceInfo:
             specs=specs,
             misc=misc
         )
+    
+    def __str__(self) -> str:
+        return f"DeviceInfo(\nid={self.id}\n, name={self.name}\n, description={self.description}\n, manufacturer={self.manufacturer}\n, specs={self.specs}\n, misc={self.misc})"

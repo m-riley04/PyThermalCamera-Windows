@@ -4,6 +4,9 @@ from os import getcwd
 ### MAIN CONSTANTS
 DEFAULT_VIDEO_DEVICE_INDEX: int = 0
 
+### LOGGING CONSTANTS
+DEFAULT_LOG_LEVEL: str = "WARNING"
+
 #### DEVICE CONSTANTS
 # NOTE: The defaults for these values are set to the TC001's specifications, but they can be overridden by command line arguments when running the program.
 DEFAULT_DEVICE_TEMP_MAX_C: int = 550
@@ -24,6 +27,7 @@ DEFAULT_TEMPERATURE_MAX = 0
 DEFAULT_TEMPERATURE_AVG = 0
 DEFAULT_TEMPERATURE_SIG_DIGITS = 2
 DEFAULT_NORMALIZATION_OFFSET = 273.15
+DEFAULT_NORMALIZATION_DIVISOR = 64
 
 ### DEFAULT RECORDING CONSTANTS
 DEFAULT_MEDIA_OUTPUT_PATH: str = f"{getcwd()}/output"

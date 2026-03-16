@@ -6,15 +6,23 @@ A Python program to read, parse and display thermal data from the Topdon TC001 T
 Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the program for Windows and the TS001.
 '''
 
+import logging
+from datetime import datetime
 from src.models.deviceinfo import DeviceInfo
 from src.parsers.cli_parser import createParser
-from src.defaults.values import DEFAULT_VIDEO_DEVICE_INDEX
+from src.defaults.values import DEFAULT_LOG_LEVEL, DEFAULT_VIDEO_DEVICE_INDEX
 from src.defaults.devices import printAllSupportedDevices
 from src.controllers.thermalcameracontroller import ThermalCameraController
 
 # Initialize argument parsing
 parser = createParser()
 args = parser.parse_args()
+
+# Initialize logging
+logFilePath = f"log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+logging.basicConfig(filename=logFilePath, level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.info("Program started.")
 
 def main():
     subcommand = getattr(args, 'subcommand', None)
@@ -36,20 +44,37 @@ def main():
 
     # get device index
     device_index = getattr(args, 'device_index', DEFAULT_VIDEO_DEVICE_INDEX)
+    debug = getattr(args, 'debug', False)
+    verbose = getattr(args, 'verbose', False)
+    quiet = getattr(args, 'quiet', False)
+    logging_level = "DEBUG" if debug else getattr(args, 'log_level', DEFAULT_LOG_LEVEL) # TODO: add default consts for these
+
+    # Set logging config based on arguments
+    # TODO: add logic for verbose and quiet (e.g. add console handler if verbose, set level to CRITICAL if quiet, etc.)
+    logger.setLevel(logging_level)
         
     # Initialize the controller
     c = ThermalCameraController(
         device=device_info
         , device_index=device_index
+        , logger=logger
     )
     
     # Print the all info needed on startup
-    c.printInfo()
     c.printCredits()
     c.printBindings()
     
     # Start the controller
-    c.run()
+    try:
+        c.run()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received. Exiting program.")
+        print("Exiting program.")
+    except Exception as e:
+        logger.exception("An error occurred during the main runtime loop.")
+        print(f"An error occurred: {e}")
+
+    logger.info("Program ended.")
     
 # Basic main call 
 if __name__ == '__main__':
