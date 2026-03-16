@@ -6,7 +6,7 @@ A Python program to read, parse and display thermal data from the Topdon TC001 T
 Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the program for Windows and the TS001.
 '''
 
-import logging
+import logging, cv2.utils.logging
 from datetime import datetime
 from src.models.deviceinfo import DeviceInfo
 from src.parsers.cli_parser import createParser
@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 # Initialize logging
 logFilePath = f"log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-logging.basicConfig(filename=logFilePath, level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename=logFilePath, level=logging.INFO, format='[%(msecs)d] [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 logger.info("Program started.")
 
@@ -47,10 +47,11 @@ def main():
     debug = getattr(args, 'debug', False)
     verbose = getattr(args, 'verbose', False)
     quiet = getattr(args, 'quiet', False)
-    logging_level = "DEBUG" if debug else getattr(args, 'log_level', DEFAULT_LOG_LEVEL) # TODO: add default consts for these
+    logging_level = "DEBUG" if debug else str(getattr(args, 'log_level', DEFAULT_LOG_LEVEL)) # TODO: add default consts for these
 
     # Set logging config based on arguments
     # TODO: add logic for verbose and quiet (e.g. add console handler if verbose, set level to CRITICAL if quiet, etc.)
+    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR) # TODO: add argument for specifically OpenCV. For now, I only want errors.
     logger.setLevel(logging_level)
         
     # Initialize the controller

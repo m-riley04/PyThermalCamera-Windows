@@ -130,98 +130,10 @@ class ThermalCameraController:
     
     def _checkForKeyPress(self, keyPress: int, img):
         """
-        Checks and acts on key presses.
+        Checks and acts on key presses. Calls upon the GUI controller to handle GUI-related key presses, and handles recording and snapshot key presses itself since they involve media controls in addition to GUI changes.
+        TODO/CONSIDER: move recording controls and ALL keypresses to gui controller?
         """
-        ### BLUR RADIUS
-        if keyPress == ord(KEY_INCREASE_BLUR): # Increase blur radius
-            self._guiController.blurRadius += BLUR_RADIUS_INCREMENT
-        if keyPress == ord(KEY_DECREASE_BLUR): # Decrease blur radius
-            self._guiController.blurRadius -= BLUR_RADIUS_INCREMENT
-            if self._guiController.blurRadius <= BLUR_RADIUS_MIN:
-                self._guiController.blurRadius = BLUR_RADIUS_MIN
-
-        ### THRESHOLD CONTROL
-        if keyPress == ord(KEY_INCREASE_FLOATING_HIGH_LOW_TEMP_LABEL_THRESHOLD): # Increase threshold
-            self._guiController.threshold += THRESHOLD_INCREMENT
-        if keyPress == ord(KEY_DECREASE_FLOATING_HIGH_LOW_TEMP_LABEL_THRESHOLD): # Decrease threashold
-            self._guiController.threshold -= THRESHOLD_INCREMENT
-            if self._guiController.threshold <= THRESHOLD_MIN:
-                self._guiController.threshold = THRESHOLD_MIN
-
-        ### SCALE CONTROLS
-        if keyPress == ord(KEY_INCREASE_SCALE): # Increase scale
-            self._guiController.scale += SCALE_INCREMENT
-            if self._guiController.scale >= SCALE_MAX:
-                self._guiController.scale = SCALE_MAX
-            self._guiController.scaledWidth = self._deviceInfo.width*self._guiController.scale
-            self._guiController.scaledHeight = self._deviceInfo.height*self._guiController.scale
-            if self._guiController.isFullscreen == False:
-                cv2.resizeWindow(self._guiController.windowTitle, self._guiController.scaledWidth, self._guiController.scaledHeight)
-        if keyPress == ord(KEY_DECREASE_SCALE): # Decrease scale
-            self._guiController.scale -= SCALE_INCREMENT
-            if self._guiController.scale <= SCALE_MIN:
-                self._guiController.scale = SCALE_MIN
-            self._guiController.scaledWidth = self._deviceInfo.width*self._guiController.scale
-            self._guiController.scaledHeight = self._deviceInfo.height*self._guiController.scale
-            if self._guiController.isFullscreen == False:
-                cv2.resizeWindow(self._guiController.windowTitle, self._guiController.scaledWidth,self._guiController.scaledHeight)
-
-        ### FULLSCREEN CONTROLS
-        if keyPress == ord(KEY_FULLSCREEN): # Enable fullscreen
-            self._guiController.isFullscreen = DEFAULT_FULLSCREEN
-            cv2.namedWindow(self._guiController.windowTitle, cv2.WND_PROP_FULLSCREEN)
-            cv2.setWindowProperty(self._guiController.windowTitle, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        if keyPress == ord(KEY_WINDOWED): # Disable fullscreen
-            self._guiController.isFullscreen = not DEFAULT_FULLSCREEN
-            cv2.namedWindow(self._guiController.windowTitle, cv2.WINDOW_GUI_NORMAL)
-            cv2.setWindowProperty(self._guiController.windowTitle, cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_GUI_NORMAL)
-            cv2.resizeWindow(self._guiController.windowTitle, self._guiController.scaledWidth, self._guiController.scaledHeight)
-
-        ### CONTRAST CONTROLS
-        if keyPress == ord(KEY_INCREASE_CONTRAST): # Increase contrast
-            self._guiController.contrast += CONTRAST_INCREMENT
-            self._guiController.contrast = round(self._guiController.contrast, 1) #fix round error
-            if self._guiController.contrast >= CONTRAST_MAX:
-                self._guiController.contrast = CONTRAST_MAX
-        if keyPress == ord(KEY_DECREASE_CONTRAST): # Decrease contrast
-            self._guiController.contrast -= CONTRAST_INCREMENT
-            self._guiController.contrast = round(self._guiController.contrast,1)#fix round error
-            if self._guiController.contrast <= CONTRAST_MIN:
-                self._guiController.contrast = CONTRAST_MIN
-
-        ### HUD CONTROLS
-        if keyPress == ord(KEY_TOGGLE_HUD): # Toggle HUD
-            if self._guiController.isHudVisible == True:
-                self._guiController.isHudVisible = not DEFAULT_HUD_VISIBLE
-            elif self._guiController.isHudVisible == False:
-                self._guiController.isHudVisible = DEFAULT_HUD_VISIBLE
-
-        if keyPress == ord(KEY_TOGGLE_TEMP_UNIT): # Toggle temperature unit
-            if self._temperatureUnit == TemperatureUnit.CELSIUS:
-                self._temperatureUnit = TemperatureUnit.FAHRENHEIT
-            elif self._temperatureUnit == TemperatureUnit.FAHRENHEIT:
-                self._temperatureUnit = TemperatureUnit.KELVIN
-            else:
-                self._temperatureUnit = TemperatureUnit.CELSIUS
-
-            self._temperatureUnitSymbol = getSymbolFromTempUnit(self._temperatureUnit)
-            self._guiController.temperatureUnitSymbol = self._temperatureUnitSymbol
-
-        ### COLOR MAPS
-        if keyPress == ord(KEY_CYCLE_THROUGH_COLORMAPS): # Cycle through color maps
-            if self._guiController.colormap.value + 1 > Colormap.INV_RAINBOW.value:
-                self._guiController.colormap = Colormap.NONE
-            else:
-                self._guiController.colormap = Colormap(self._guiController.colormap.value + 1)
-        if keyPress == ord(KEY_INVERT): # Cycle through color maps
-            self._guiController.isInverted = not self._guiController.isInverted
-        
-        if keyPress == ord(KEY_TOGGLE_OUTPUT_MODE): # Toggle between processed and raw thermal output
-            self._guiController.showRawThermalData = not self._guiController.showRawThermalData
-        
-        if keyPress == ord(KEY_TOGGLE_PIP): # Toggle PiP window visibility
-            self._guiController.showPiP = not self._guiController.showPiP
-            
+        self._guiController.handleKeyPresses(keyPress, self._deviceInfo)
         
         ### RECORDING/MEDIA CONTROLS
         if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start recording
