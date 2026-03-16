@@ -20,8 +20,8 @@ args = parser.parse_args()
 
 # Initialize logging
 logFilePath = f"log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-logging.basicConfig(filename=logFilePath, level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
-logger = logging.getLogger(__name__)
+logging.basicConfig(filename=logFilePath, level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s')
+logger = logging.getLogger("PyThermalCamera")
 logger.info("Program started.")
 
 def main():
@@ -58,7 +58,7 @@ def main():
     c = ThermalCameraController(
         device=device_info
         , device_index=device_index
-        , logger=logger
+        , logger=logger.getChild("ThermalCameraController")
     )
     
     # Print the all info needed on startup
