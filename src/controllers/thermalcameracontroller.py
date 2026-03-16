@@ -55,6 +55,7 @@ class ThermalCameraController:
         
         # GUI Init
         self._guiController = GuiController(
+            logger=logger,
             width=self._deviceInfo.specs.imaging.ir_resolution_width_px,
             height=self._deviceInfo.specs.imaging.ir_resolution_height_px,
             temperatureUnitSymbol=self._temperatureUnitSymbol)

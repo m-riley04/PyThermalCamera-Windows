@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 # Initialize logging
 logFilePath = f"log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-logging.basicConfig(filename=logFilePath, level=logging.INFO, format='[%(msecs)d] [%(levelname)s] %(message)s')
+logging.basicConfig(filename=logFilePath, level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 logger.info("Program started.")
 
