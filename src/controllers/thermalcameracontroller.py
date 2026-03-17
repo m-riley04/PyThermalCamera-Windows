@@ -204,7 +204,7 @@ class ThermalCameraController:
         Calculates the (normalized) temperature of the frame.
         """
         raw = self.calculateRawTemperature(thdata)
-        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, d=self._deviceInfo.misc.normalization_divisor, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def calculateRawTemperature(self, thdata: NDArray) -> float:
         """
@@ -233,7 +233,7 @@ class ThermalCameraController:
         b0avg = int(thdata[..., 0].mean())
         b1avg = int(thdata[..., 1].mean())
         raw = self._rawFromBytes(b0avg, b1avg)
-        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, d=self._deviceInfo.misc.normalization_divisor, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def calculateMinimumTemperature(self, thdata: NDArray) -> float:
         """
@@ -251,7 +251,7 @@ class ThermalCameraController:
         b1 = int(thdata[self._lcol, self._lrow, 1])
         raw = self._rawFromBytes(b0, b1)
 
-        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, d=self._deviceInfo.misc.normalization_divisor, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def calculateMaximumTemperature(self, thdata: NDArray) -> float:
         """
@@ -270,7 +270,7 @@ class ThermalCameraController:
         b1 = int(thdata[self._mcol, self._mrow, 1])
         raw = self._rawFromBytes(b0, b1)
 
-        return round(self.normalizeTemperature(raw, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
+        return round(self.normalizeTemperature(raw, d=self._deviceInfo.misc.normalization_divisor, c=self._deviceInfo.misc.normalization_offset), DEFAULT_TEMPERATURE_SIG_DIGITS)
 
     def _splitFrameData(self, frame: NDArray, *, logWarnings: bool = True) -> tuple[NDArray | None, NDArray | None]:
         """

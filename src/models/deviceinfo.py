@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from src.defaults.values import DEFAULT_NORMALIZATION_OFFSET
+from src.defaults.values import DEFAULT_NORMALIZATION_DIVISOR, DEFAULT_NORMALIZATION_OFFSET
 from src.enums.ThermalByteOrderEnum import ThermalByteOrder
 
 @dataclass
@@ -166,6 +166,7 @@ class DeviceInfoSpecs:
 class DeviceInfoOther:
     thermal_byte_order: ThermalByteOrder | None = None
     normalization_offset: float = DEFAULT_NORMALIZATION_OFFSET
+    normalization_divisor: float = DEFAULT_NORMALIZATION_DIVISOR
 
     @staticmethod
     def createFromJson(data: dict) -> 'DeviceInfoOther':
@@ -178,13 +179,15 @@ class DeviceInfoOther:
                 print(f"Warning: Invalid thermal byte order string in JSON: {thermal_byte_order_str}. Expected 'lsb0' or 'lsb1'. Defaulting to None.")
 
         normalization_offset = float(data.get("normalization_offset", DEFAULT_NORMALIZATION_OFFSET))
+        normalization_divisor = float(data.get("normalization_divisor", DEFAULT_NORMALIZATION_DIVISOR))
         return DeviceInfoOther(
             thermal_byte_order=thermal_byte_order
             , normalization_offset=normalization_offset
+            , normalization_divisor=normalization_divisor
         )
     
     def __str__(self):
-        return f"DeviceInfoOther(\nthermal_byte_order={self.thermal_byte_order}\n, normalization_offset={self.normalization_offset})"
+        return f"DeviceInfoOther(thermal_byte_order={self.thermal_byte_order}, normalization_offset={self.normalization_offset})"
 
 @dataclass
 class DeviceInfo:
@@ -247,4 +250,4 @@ class DeviceInfo:
         )
     
     def __str__(self) -> str:
-        return f"DeviceInfo(\nid={self.id}\n, name={self.name}\n, description={self.description}\n, manufacturer={self.manufacturer}\n, specs={self.specs}\n, misc={self.misc})"
+        return f"DeviceInfo(id={self.id}, name={self.name}, description={self.description}, manufacturer={self.manufacturer}, specs={self.specs}, misc={self.misc})"
