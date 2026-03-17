@@ -55,10 +55,10 @@ class ThermalCameraController:
         
         # GUI Init
         self._guiController = GuiController(
-            logger=logger.getChild("GuiController"),
-            width=self._deviceInfo.specs.imaging.ir_resolution_width_px,
-            height=self._deviceInfo.specs.imaging.ir_resolution_height_px,
-            temperatureUnitSymbol=self._temperatureUnitSymbol)
+            logger=logger.getChild("GuiController")
+            , width=self._deviceInfo.specs.imaging.ir_resolution_width_px
+            , height=self._deviceInfo.specs.imaging.ir_resolution_height_px
+            , temperatureUnit=self._temperatureUnit)
         
         # OpenCV init
         self._cap = None
@@ -135,6 +135,19 @@ class ThermalCameraController:
         TODO/CONSIDER: move recording controls and ALL keypresses to gui controller?
         """
         self._guiController.handleKeyPresses(keyPress, self._deviceInfo)
+
+        ### Temp Units
+        if keyPress == ord(KEY_TOGGLE_TEMP_UNIT): # Toggle temperature unit
+            if self._temperatureUnit == TemperatureUnit.CELSIUS:
+                self._temperatureUnit = TemperatureUnit.FAHRENHEIT
+            elif self._temperatureUnit == TemperatureUnit.FAHRENHEIT:
+                self._temperatureUnit = TemperatureUnit.KELVIN
+            else:
+                self._temperatureUnit = TemperatureUnit.CELSIUS
+
+            self._temperatureUnitSymbol = getSymbolFromTempUnit(self._temperatureUnit)
+            self.logger.info("Temperature unit changed to %s", self._temperatureUnit.name)
+            self._guiController.temperatureUnitSymbol = self._temperatureUnitSymbol
         
         ### RECORDING/MEDIA CONTROLS
         if keyPress == ord(KEY_RECORD) and self._isRecording == False: # Start recording

@@ -7,17 +7,18 @@ from src.defaults.values import *
 from src.enums.ColormapEnum import Colormap
 
 class GuiController:
-    def __init__(self, 
-                 logger: logging.Logger,
-                 windowTitle: str = WINDOW_TITLE, 
-                 width: int = DEFAULT_SENSOR_WIDTH_PX, 
-                 height: int = DEFAULT_SENSOR_HEIGHT_PX, 
-                 scale: int = DEFAULT_SCALE, 
-                 colormap: Colormap = DEFAULT_COLORMAP, 
-                 contrast: float = DEFAULT_CONTRAST, 
-                 blurRadius: int = DEFAULT_BLUR_RADIUS, 
-                 threshold: int = DEFAULT_THRESHOLD,
-                 temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL):
+    def __init__(self
+                 , logger: logging.Logger
+                 , windowTitle: str = WINDOW_TITLE
+                 , width: int = DEFAULT_SENSOR_WIDTH_PX
+                 , height: int = DEFAULT_SENSOR_HEIGHT_PX
+                 , scale: int = DEFAULT_SCALE
+                 , colormap: Colormap = DEFAULT_COLORMAP
+                 , contrast: float = DEFAULT_CONTRAST
+                 , blurRadius: int = DEFAULT_BLUR_RADIUS
+                 , threshold: int = DEFAULT_THRESHOLD
+                 , temperatureUnit: TemperatureUnit = DEFAULT_TEMPERATURE_UNIT
+                 , temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL):
         self.logger = logger
         self.logger.info("Initializing GUIController.")
 
@@ -31,6 +32,7 @@ class GuiController:
         self.blurRadius = blurRadius
         self.threshold = threshold
         self.temperatureUnitSymbol = temperatureUnitSymbol
+        self._temperatureUnit = temperatureUnit
         
         # Calculated properties
         self.scaledWidth = int(self.width*self.scale)
@@ -149,18 +151,6 @@ class GuiController:
                 self.isHudVisible = DEFAULT_HUD_VISIBLE
 
             self.logger.info("HUD visibility toggled. New state: %s", self.isHudVisible)
-
-        if keyPress == ord(KEY_TOGGLE_TEMP_UNIT): # Toggle temperature unit
-            if self._temperatureUnit == TemperatureUnit.CELSIUS:
-                self._temperatureUnit = TemperatureUnit.FAHRENHEIT
-            elif self._temperatureUnit == TemperatureUnit.FAHRENHEIT:
-                self._temperatureUnit = TemperatureUnit.KELVIN
-            else:
-                self._temperatureUnit = TemperatureUnit.CELSIUS
-
-            self._temperatureUnitSymbol = getSymbolFromTempUnit(self._temperatureUnit)
-            self.logger.info("Temperature unit changed to %s", self._temperatureUnit.name)
-            self.temperatureUnitSymbol = self._temperatureUnitSymbol
 
         ### COLOR MAPS
         if keyPress == ord(KEY_CYCLE_THROUGH_COLORMAPS): # Cycle through color maps
