@@ -8,9 +8,11 @@ This is a fork of the now-outdated (June 2023) Python script to display the temp
   - [Why](#why)
   - [Credits](#credits)
 - [Features](#features)
-- [Dependencies](#dependencies)
-- [Running the Program](#running-the-program)
-  - [Basic Sandbox Program](#basic-sandbox-program)
+  - [Tested Platforms](#tested-platforms)
+- [Running and setup](#running-and-setup)
+  - [Pre-Flight Checks](#pre-flight-checks)
+  - [Running the Program](#running-the-program)
+  - [Running Tests](#running-tests)
 - [Using the Program](#using-the-program)
   - [Key Bindings](#key-bindings)
 - [TODO](#todo)
@@ -19,13 +21,15 @@ This is a fork of the now-outdated (June 2023) Python script to display the temp
 
 No commands are sent to the camera. Instead, we take the raw video feed, do some OpenCV processing, and display a nice heatmap along with relevant temperature points highlighted.
 
+I am currently in the process of reverse engineering the commands sent to the camera through USB.
+
 ![Screenshot](media/TC00120230701-131032.png)
 
 ### Why?
 
-Due to updates to OpenCV, NumPy, and Python, the original script breaks on Windows. I am testing using a [TS001](https://www.topdon.com/products/ts001) on Windows, so this fork is tailored majorly towards that (but hypothetically could work on Linux and other platforms).
+Due to updates to OpenCV, NumPy, and Python, the original script breaks on Windows. I am testing using a [TS001](https://www.topdon.com/products/ts001) on Windows, so this fork is tailored majorly towards that.
 
-I have attempted to flesh out/refactor the program and finish what Les Wright started, making it compatable with Windows systems as well as applying more polished coding practices (proper documentation, no hard-coding, strong-typing, OOP practices, etc.). It started small, but has turned into practically a full rewrite.
+I have attempted to flesh out/refactor the program and finish what Les Wright started, making it compatable with Windows systems as well as applying more polished coding practices (proper documentation, no hard-coding, strong-typing, OOP practices, etc.). It started small, but has turned into a full rewrite.
 
 ### Credits
 
@@ -37,71 +41,118 @@ LeoDJ was responsible for reverse engineering the image format for these types o
 
 Tested on Windows 11 Pro (update 23H2).
 
-> NOTE: Seemingly there are bugs in the compiled version of OpenCV that ships with the Pi. No workarounds have been re-implemented for the Raspberry Pi from the original code due to the workaround actually *breaking* the program on Windows. I'm not sure exactly when it broke, but it must have been between the past 2-3 years.
+> NOTE: Seemingly there are bugs in the compiled version of OpenCV that ships with the Pi, so workarounds have been implemented.
 
 The following features have been implemented:
 
 <img align="right" src="media/colormaps.png" alt="The colormaps supported">
 
-- Bicubic interpolation to scale the small 256*192 image to something more presentable! Available scaling multiplier range from 1-5 (Note: This will not auto change the window size on the Pi (openCV needs recompiling), however you can manually resize). Optional blur can be applied if you want to smooth out the pixels.
-- Fullscreen / Windowed mode (Note going back to windowed  from fullscreen does not seem to work on the Pi! OpenCV probably needs recompiling!).
-- False coloring of the video image is provided. the avilable colormaps are listed on the right.
-- Variable Contrast.
-- Average Scene Temperature.
-- Center of scene temperature monitoring (Crosshairs).
-- Floating Maximum and Minimum temperature values within the scene, with variable threshold.
-- Video recording is implemented (saved as AVI in the working directory).
-- Snapshot images are implemented (saved as PNG in the working directory).
-- Invert the colormap (essentially double the color themes!)
+- Temperature reading from device
+  - Average Scene Temperature.
+  - Center of scene temperature monitoring (crosshair).
+  - Floating Maximum and Minimum temperature values within the scene, with variable threshold.
+- Data-driven device configuration
+  - Pre-configured JSON files for common devices, including:
+    - TC001
+    - TS001
+- Data capture
+  - Video recording is implemented (saved as AVI in the working directory).
+  - Snapshot images are implemented (saved as PNG in the working directory).
+- Full set of colormaps
+  - False coloring of the video image. Available colormaps are listed on the right.
+  - Colors can also be inverted, essentially doubling the amount of colormaps!
+- Post-processing options
+  - Scaling
+    - Bicubic interpolation to scale the small 256*192 image to something more presentable! Available scaling multiplier range from 1-5.
+    - Note: This will not auto change the window size on the Pi (OpenCV needs recompiling), however you can manually resize.
+  - Blur
+  - Contrast
+- Fullscreen/windowed modes
+  - Note: going back to windowed from fullscreen does not seem to work on the Pi! OpenCV probably needs recompiling.
+- Detailed logging system
+- Full CLI help pages
+- Additional debug features
+  - Reversing the image data
+  - A Picture-in-Picture (PiP) mode for previewing raw thermal data with image data
 
-The current settings are displayed in a box at the top left of the screen (The HUD):
+### Tested Platforms
 
-- Avg Temperature of the scene
-- Label threshold (temperature threshold at which to display floating min max values)
-- Colormap
-- Blur (blur radius)
-- Scaling multiplier
-- Contrast value
-- Time of the last snapshot image
-- Recording status
+#### Operating Systems
 
-## Dependencies
+- Windows 11
+- Raspbian Trixie
+- Raspbian Bookworm
 
-- Python (v3.12.4)
-- python-opencv (v##.##.##)
-- numpy (v##.##.##)
+#### Hardware/Arch
 
-## Running the Program
+- x64
+- Raspberry Pi 5
+- Raspberry Pi 4b
 
-> **MAJOR NOTE**: If you have previously installed the official drivers/application from Topdon's website, ***UNINSTALL THEM COMPLETELY***. If you do not, your system will no longer recognize your camera as UVC-compatible.
+## Running and Setup
+
+### Pre-Flight Checks
+
+> 🛑**MAJOR NOTE**🛑: If you have previously installed the official drivers/application from Topdon's website, ***UNINSTALL THEM COMPLETELY***. If you do not, your system will no longer recognize your camera as UVC-compatible.
 
 Before running the program, please check that you have the following:
 
 - You have connected your camera to your system properly
 - You have the correct drivers installed (or just that the camera shows up as a video device)
-- You have all dependencies installed
 - You have Python in your `PATH`
-- You are starting in the root directory of the repo
 
-If that is in order, the following command can be used to run the program:
+If that is in order, the following commands can be used to initialize your environment for multiple platforms:
+
+Linux:
 
 ```bash
-python src/main.py
+cd $REPO_ROOT
+python -m venv .venv
+source ./.venv/bin/activate
 ```
+
+Windows (CMD):
+
+```bash
+cd %REPO_ROOT%
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+Windows (Powershell):
+
+```bash
+cd $env:REPO_ROOT
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+Then, to install all dependencies inside your virtual environment:
+
+```bash
+python -m pip install -r REQUIREMENTS.txt
+```
+
+### Running the Program
+
+Generally to run the program, all you need to run is the following:
+
+```bash
+python main.py device $DEVICE_CONFIG_JSON -i $VIDEO_INDEX
+```
+
+Where:
+
+- `DEVICE_CONFIG_JSON` is the path to the configuration json (i.e. `devices/TC001.json`, `devices/TS001.json`, etc.)
+- `VIDEO_INDEX` is the video index for the thermal camera device (i.e. 0 for `/dev/video0`, 1 for `/dev/video1`, etc.).
+  - This is based on OpenCV's implementation. It's easier on Linux systems when you can use `v4l2`.
 
 There are also optional flags/arguments that you can pass to help you choose different devices or models. To see them all and details, run the program with the `--help` flag.
 
-### Running Calculation Tests
+### Running Tests
 
-To run the temperature-calculation test suite:
-
-```bash
-python -m unittest discover -s tests -p "test_*.py"
-```
-
-### Basic Sandbox Program
-
-`tc001-RAW.py`: Just demonstrates how to grab raw frames from the Thermal Camera, a starting point if you want to code your own app ***(currently untouched from the fork)***
+<!-- TODO: add -->
+Tests are coming soon. Currently, they are hit or miss.
 
 ## Using the Program
 
@@ -119,13 +170,13 @@ These keybindings can be changed easily in the `defaults/keybinds.py` file.
 - i : Invert the colormap
 - h : Toggle HUD
 - u : Toggle Celsius/Fahrenheit
+- o : Toggle output mode (image data vs temperature data)
+- u : Cycle temperature unit
+- b : Toggle PiP raw data view
 - q : Quit the program
 
 ## TODO
 
-> NOTE: This to-do list will be moved into a public GitHub Kanban soon, but it's 2am and I'm tired.
-
-- Temperature values appear to be calculated incorrectly at the moment. Unsure if it's something I did/removed (since I never got the "original" working)
 - Error checking
 - Threading, especially on low speed (but multicore) architectures like the Pi!
 - Add graphing
