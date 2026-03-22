@@ -164,9 +164,15 @@ class DeviceInfoSpecs:
 
 @dataclass
 class DeviceInfoOther:
+    ## The order which the thermal data bytes are arranged in the raw frame data. This is important for correctly parsing the raw thermal data from the frames. If None, it will default to the standard order (LSB_BYTE_0).
     thermal_byte_order: ThermalByteOrder | None = None
+
+    ## Normalization parameters for converting raw thermal data to actual temperature values. The formula is: (raw / normalization_divisor) - normalization_offset
     normalization_offset: float = DEFAULT_NORMALIZATION_OFFSET
     normalization_divisor: float = DEFAULT_NORMALIZATION_DIVISOR
+
+    ## Whether to reverse the output split (image data vs thermal data). This is for specific units which have them flipped.
+    reverse_output: bool = False
 
     @staticmethod
     def createFromJson(data: dict) -> 'DeviceInfoOther':
@@ -180,14 +186,18 @@ class DeviceInfoOther:
 
         normalization_offset = float(data.get("normalization_offset", DEFAULT_NORMALIZATION_OFFSET))
         normalization_divisor = float(data.get("normalization_divisor", DEFAULT_NORMALIZATION_DIVISOR))
+
+        reverse_output = bool(data.get("reverse_output", False))
+
         return DeviceInfoOther(
             thermal_byte_order=thermal_byte_order
             , normalization_offset=normalization_offset
             , normalization_divisor=normalization_divisor
+            , reverse_output=reverse_output
         )
     
     def __str__(self):
-        return f"DeviceInfoOther(thermal_byte_order={self.thermal_byte_order}, normalization_offset={self.normalization_offset})"
+        return f"DeviceInfoOther(thermal_byte_order={self.thermal_byte_order}, normalization_offset={self.normalization_offset}, normalization_divisor={self.normalization_divisor}, reverse_output={self.reverse_output})"
 
 @dataclass
 class DeviceInfo:

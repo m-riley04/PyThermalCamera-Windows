@@ -58,7 +58,8 @@ class ThermalCameraController:
             logger=logger.getChild("GuiController")
             , width=self._deviceInfo.specs.imaging.ir_resolution_width_px
             , height=self._deviceInfo.specs.imaging.ir_resolution_height_px
-            , temperatureUnit=self._temperatureUnit)
+            , temperatureUnit=self._temperatureUnit
+            , reverseOutput=self._deviceInfo.misc.reverse_output)
         
         # OpenCV init
         self._cap = None
@@ -438,7 +439,7 @@ class ThermalCameraController:
 
                 # Determine which data to use for temperature calculations
                 # If swapped, the thermal data is in what we're calling 'imdata'
-                temp_data = imdata if self._guiController.showRawThermalData else thdata
+                temp_data = imdata if self._guiController.reverseOutput else thdata
                 
                 # Find the average temperature in the frame
                 self._avgTemp = self.calculateAverageTemperature(temp_data)

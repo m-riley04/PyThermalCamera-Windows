@@ -18,7 +18,8 @@ class GuiController:
                  , blurRadius: int = DEFAULT_BLUR_RADIUS
                  , threshold: int = DEFAULT_THRESHOLD
                  , temperatureUnit: TemperatureUnit = DEFAULT_TEMPERATURE_UNIT
-                 , temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL):
+                 , temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL
+                 , reverseOutput: bool = False):
         self.logger = logger
         self.logger.info("Initializing GUIController.")
 
@@ -33,7 +34,8 @@ class GuiController:
         self.threshold = threshold
         self.temperatureUnitSymbol = temperatureUnitSymbol
         self._temperatureUnit = temperatureUnit
-        
+        self.reverseOutput = reverseOutput
+
         # Calculated properties
         self.scaledWidth = int(self.width*self.scale)
         self.scaledHeight = int(self.height*self.scale)
@@ -42,7 +44,6 @@ class GuiController:
         self.isHudVisible: bool = DEFAULT_HUD_VISIBLE
         self.isFullscreen: bool = DEFAULT_FULLSCREEN
         self.isInverted: bool = False
-        self.showRawThermalData: bool = False
         self.showPiP: bool = True
         
         # Recording stats
@@ -164,8 +165,8 @@ class GuiController:
             self.isInverted = not self.isInverted
         
         if keyPress == ord(KEY_TOGGLE_OUTPUT_MODE): # Toggle between processed and raw thermal output
-            self.logger.info("Toggling output mode. Previous state: %s", self.showRawThermalData)
-            self.showRawThermalData = not self.showRawThermalData
+            self.logger.info("Toggling output mode. Previous state: %s", self.reverseOutput)
+            self.reverseOutput = not self.reverseOutput
         
         if keyPress == ord(KEY_TOGGLE_PIP): # Toggle PiP window visibility
             self.logger.info("Toggling PiP window visibility. Previous state: %s", self.showPiP)
@@ -175,9 +176,9 @@ class GuiController:
         """
         Draws the GUI elements on the thermal image.
         """
-        # Swap data sources if showRawThermalData is enabled
+        # Swap data sources if reverseOutput is enabled
         # This helps if the camera backend is showing the wrong half of the frame
-        if self.showRawThermalData:
+        if self.reverseOutput:
             display_data = thdata
             pip_data = imdata
         else:
@@ -218,7 +219,7 @@ class GuiController:
         
         # Show PiP with the alternate data source for comparison if enabled
         if self.showPiP:
-            img = self._overlayRawThermalData(img, pip_data, self.showRawThermalData)
+            img = self._overlayRawThermalData(img, pip_data, self.reverseOutput)
 
         return img
 

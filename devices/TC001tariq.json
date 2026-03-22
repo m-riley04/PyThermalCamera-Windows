@@ -116,7 +116,8 @@
     "misc": {
         "thermal_byte_order": "LSB_BYTE_0",
         "normalization_offset": 53.0,
-        "normalization_divisor": 64.0
+        "normalization_divisor": 64.0,
+        "reverse_output": true
     },
     "pricing": {
         "regular_price_usd": 289.00,
