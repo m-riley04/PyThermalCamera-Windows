@@ -32,14 +32,17 @@ def main():
 
     device_info = None
     if subcommand == "list":
+        logger.info("Listing all supported devices from devices folder.")
         printAllSupportedDevices()
         return
     
     if subcommand == "device":
         json_path = getattr(args, 'json_path', None)
         if json_path is None:
+            logger.error("No JSON file path provided for device subcommand.")
             print("Error: A JSON file path is required when using the device subcommand.")
             return
+        logger.info(f"Loading device information from JSON file: {json_path}")
         device_info = DeviceInfo.createFromJson(json_path)
 
     # get device index
@@ -66,6 +69,7 @@ def main():
     c.printBindings()
     
     # Start the controller
+    logger.info("Starting main runtime loop.")
     try:
         c.run()
     except KeyboardInterrupt:
