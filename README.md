@@ -51,6 +51,7 @@ The following features have been implemented:
   - Average Scene Temperature.
   - Center of scene temperature monitoring (crosshair).
   - Floating Maximum and Minimum temperature values within the scene, with variable threshold.
+- Temperature unit conversions
 - Data-driven device configuration
   - Pre-configured JSON files for common devices, including:
     - TC001
