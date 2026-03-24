@@ -9,6 +9,9 @@ This is a fork of the now-outdated (June 2023) Python script to display the temp
   - [Credits](#credits)
 - [Features](#features)
   - [Tested Platforms](#tested-platforms)
+    - [Operating Systmes](#operating-systems)
+    - [Hardware/Arch](#hardwarearch)
+    - [Thermal Camera Devices](#thermal-camera-devices)
 - [Running and setup](#running-and-setup)
   - [Pre-Flight Checks](#pre-flight-checks)
   - [Running the Program](#running-the-program)
@@ -89,6 +92,11 @@ The following features have been implemented:
 - x64
 - Raspberry Pi 5
 - Raspberry Pi 4b
+
+#### Thermal Camera Devices
+
+- TOPDON TS001
+- TOPDON TC001
 
 ## Running and Setup
 
