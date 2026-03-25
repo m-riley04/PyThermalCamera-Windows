@@ -6,7 +6,7 @@ A Python program to read, parse and display thermal data from the Topdon TC001 T
 Forked by Riley Meyerkorth on 17 January 2025 to modernize and clean up the program for Windows and the TS001.
 '''
 
-import logging, cv2.utils.logging
+import logging, cv2.utils.logging, os
 from datetime import datetime
 from src.models.deviceinfo import DeviceInfo
 from src.parsers.cli_parser import createParser
@@ -19,7 +19,12 @@ parser = createParser()
 args = parser.parse_args()
 
 # Initialize logging
-logFilePath = f"log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+logsDirPath = "logs"
+logFilePath = f"{logsDirPath}/log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+
+if not os.path.exists(logsDirPath):
+    os.makedirs(logsDirPath)
+
 logging.basicConfig(filename=logFilePath, level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s')
 logger = logging.getLogger("PyThermalCamera")
 logger.info("Program started.")
