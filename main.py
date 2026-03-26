@@ -33,9 +33,11 @@ logger = logging.getLogger("PyThermalCamera")
 logger.info("Program started.")
 
 def main():
+    logger.info("Parsing command-line arguments.")
     subcommand = getattr(args, 'subcommand', None)
     device_info = None
 
+    logger.info(f"Processing subcommand: {subcommand}")
     match subcommand:
         case "list":
             logger.info("Listing all supported devices from devices folder.")
@@ -62,6 +64,7 @@ def main():
             return
 
     # get global arguments/options
+    logger.info("Retrieving global arguments.")
     device_index = getattr(args, 'device_index', DEFAULT_VIDEO_DEVICE_INDEX)
     debug = getattr(args, 'debug', False)
     verbose = getattr(args, 'verbose', False)
@@ -70,6 +73,7 @@ def main():
 
     # Set logging config based on arguments
     # TODO: add logic for verbose and quiet (e.g. add console handler if verbose, set level to CRITICAL if quiet, etc.)
+    logger.info(f"Setting logging level to {logging_level}.", )
     cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR) # TODO: add argument for specifically OpenCV. For now, I only want errors.
     logger.setLevel(logging_level)
         
@@ -85,14 +89,14 @@ def main():
     c.printBindings()
     
     # Start the controller
-    logger.info("Starting main runtime loop.")
+    logger.info("Entering main runtime block.")
     try:
         c.run()
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt received. Exiting program.")
         print("Exiting program.")
     except Exception as e:
-        logger.exception("An error occurred during the main runtime loop.")
+        logger.exception("An error occurred during the main runtime loop: ", exc_info=e)
         print(f"An error occurred: {e}")
 
     logger.info("Program ended.")
