@@ -106,7 +106,7 @@
     "misc": {
         "thermal_byte_order": "LSB_BYTE_0",
         "normalization_offset": 273.15,
-        "normalization_divisor": 1.0
+        "normalization_divisor": 64.0
     },
     "in_the_box": [
         "TS001 Thermal Camera",

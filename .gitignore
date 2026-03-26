@@ -16,6 +16,10 @@ output/
 TS001.py
 TC001.py
 
+# building
+build/
+dist/
+
 # misc
 .env
 .env.*

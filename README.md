@@ -163,6 +163,14 @@ There are also optional flags/arguments that you can pass to help you choose dif
 <!-- TODO: add -->
 Tests are coming soon. Currently, they are hit or miss.
 
+### Building
+
+The app can also be built into an executable on Windows. This can be done by using the `ptc.spec` file and `pyinstaller`.
+
+```bash
+pyinstaller ptc.spec
+```
+
 ## Using the Program
 
 ### Key Bindings
