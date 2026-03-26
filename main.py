@@ -34,34 +34,34 @@ logger.info("Program started.")
 
 def main():
     subcommand = getattr(args, 'subcommand', None)
-    if subcommand is None:
-        parser.print_help()
-        return
-
     device_info = None
-    if subcommand == "list":
-        logger.info("Listing all supported devices from devices folder.")
-        printAllSupportedDevices()
-        return
-    
-    if subcommand == "device":
-        json_path = getattr(args, 'json_path', None)
-        if json_path is None:
-            logger.error("No JSON file path provided for device subcommand.")
-            print("Error: A JSON file path is required when using the device subcommand.")
-            return
-        if not os.path.isfile(json_path):
-            logger.error(f"Provided JSON file path does not exist: {json_path}")
-            print(f"Error: The provided JSON file path does not exist: {json_path}")
-            return
-        if not json_path.endswith(".json"):
-            logger.error(f"Provided file is not a JSON file: {json_path}")
-            print(f"Error: The provided file is not a JSON file: {json_path}")
-            return
-        logger.info(f"Loading device information from JSON file: {json_path}")
-        device_info = DeviceInfo.createFromJson(json_path)
 
-    # get device index
+    match subcommand:
+        case "list":
+            logger.info("Listing all supported devices from devices folder.")
+            printAllSupportedDevices()
+            return
+        case "device":
+            json_path = getattr(args, 'json_path', None)
+            if json_path is None:
+                logger.error("No JSON file path provided for device subcommand.")
+                print("Error: A JSON file path is required when using the device subcommand.")
+                return
+            if not os.path.isfile(json_path):
+                logger.error(f"Provided JSON file path does not exist: {json_path}")
+                print(f"Error: The provided JSON file path does not exist: {json_path}")
+                return
+            if not json_path.endswith(".json"):
+                logger.error(f"Provided file is not a JSON file: {json_path}")
+                print(f"Error: The provided file is not a JSON file: {json_path}")
+                return
+            logger.info(f"Loading device information from JSON file: {json_path}")
+            device_info = DeviceInfo.createFromJson(json_path)
+        case _:
+            parser.print_help()
+            return
+
+    # get global arguments/options
     device_index = getattr(args, 'device_index', DEFAULT_VIDEO_DEVICE_INDEX)
     debug = getattr(args, 'debug', False)
     verbose = getattr(args, 'verbose', False)
