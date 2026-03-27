@@ -9,13 +9,14 @@ This is a fork of the now-outdated (June 2023) Python script to display the temp
   - [Credits](#credits)
 - [Features](#features)
   - [Tested Platforms](#tested-platforms)
-    - [Operating Systmes](#operating-systems)
+    - [Operating Systems](#operating-systems)
     - [Hardware/Arch](#hardwarearch)
     - [Thermal Camera Devices](#thermal-camera-devices)
 - [Running and setup](#running-and-setup)
   - [Pre-Flight Checks](#pre-flight-checks)
   - [Running the Program](#running-the-program)
   - [Running Tests](#running-tests)
+  - [Building](#building)
 - [Using the Program](#using-the-program)
   - [Key Bindings](#key-bindings)
 - [TODO](#todo)
@@ -41,8 +42,6 @@ The majority of the thermal data configuration work was done by the original rep
 LeoDJ was responsible for reverse engineering the image format for these types of cameras (InfiRay P2 Pro). If possible, you should read the [EEVBlog post/thread](https://www.eevblog.com/forum/thermal-imaging/infiray-and-their-p2-pro-discussion/200/) and check out [Leo's GitHub repo](https://github.com/LeoDJ/P2Pro-Viewer).
 
 ## Features
-
-Tested on Windows 11 Pro (update 23H2).
 
 > NOTE: Seemingly there are bugs in the compiled version of OpenCV that ships with the Pi, so workarounds have been implemented.
 
@@ -83,9 +82,8 @@ The following features have been implemented:
 
 #### Operating Systems
 
-- Windows 11
-- Raspbian Trixie
-- Raspbian Bookworm
+- Windows 11 Pro
+- Raspbian (Trixie, Bookworm)
 
 #### Hardware/Arch
 
