@@ -1,20 +1,28 @@
-import time
-import cv2
+import time, cv2, logging, numpy as np
 
-from defaults.values import *
-from enums.ColormapEnum import Colormap
+from src.defaults.keybinds import *
+from src.enums.TemperatureUnitEnum import TemperatureUnit, getSymbolFromTempUnit
+from src.models.deviceinfo import DeviceInfo
+from src.defaults.values import *
+from src.enums.ColormapEnum import Colormap
 
 class GuiController:
-    def __init__(self, 
-                 windowTitle: str = WINDOW_TITLE, 
-                 width: int = DEFAULT_SENSOR_WIDTH_PX, 
-                 height: int = DEFAULT_SENSOR_HEIGHT_PX, 
-                 scale: int = DEFAULT_SCALE, 
-                 colormap: Colormap = DEFAULT_COLORMAP, 
-                 contrast: float = DEFAULT_CONTRAST, 
-                 blurRadius: int = DEFAULT_BLUR_RADIUS, 
-                 threshold: int = DEFAULT_THRESHOLD,
-                 temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL):
+    def __init__(self
+                 , logger: logging.Logger
+                 , windowTitle: str = WINDOW_TITLE
+                 , width: int = DEFAULT_SENSOR_WIDTH_PX
+                 , height: int = DEFAULT_SENSOR_HEIGHT_PX
+                 , scale: int = DEFAULT_SCALE
+                 , colormap: Colormap = DEFAULT_COLORMAP
+                 , contrast: float = DEFAULT_CONTRAST
+                 , blurRadius: int = DEFAULT_BLUR_RADIUS
+                 , threshold: int = DEFAULT_THRESHOLD
+                 , temperatureUnit: TemperatureUnit = DEFAULT_TEMPERATURE_UNIT
+                 , temperatureUnitSymbol: str = DEFAULT_TEMPERATURE_UNIT_SYMBOL
+                 , reverseOutput: bool = False):
+        self.logger = logger
+        self.logger.info("Initializing GUIController.")
+
         # Passed parameters
         self.windowTitle = windowTitle
         self.width = width
@@ -25,7 +33,9 @@ class GuiController:
         self.blurRadius = blurRadius
         self.threshold = threshold
         self.temperatureUnitSymbol = temperatureUnitSymbol
-        
+        self._temperatureUnit = temperatureUnit
+        self.reverseOutput = reverseOutput
+
         # Calculated properties
         self.scaledWidth = int(self.width*self.scale)
         self.scaledHeight = int(self.height*self.scale)
@@ -34,6 +44,7 @@ class GuiController:
         self.isHudVisible: bool = DEFAULT_HUD_VISIBLE
         self.isFullscreen: bool = DEFAULT_FULLSCREEN
         self.isInverted: bool = False
+        self.showPiP: bool = True
         
         # Recording stats
         self.recordingStartTime: float = DEFAULT_RECORDING_START_TIME
@@ -46,6 +57,9 @@ class GuiController:
         # Initialize the GUI
         cv2.namedWindow(self.windowTitle, cv2.WINDOW_GUI_NORMAL)
         cv2.resizeWindow(self.windowTitle, self.scaledWidth, self.scaledHeight)
+
+        self.logger.info("GUIController initialized with window title: %s, width: %d, height: %d, scale: %d, colormap: %s, contrast: %.1f, blur radius: %d, threshold: %d, temperature unit symbol: %s",
+                         self.windowTitle, self.width, self.height, self.scale, self.colormap.name, self.contrast, self.blurRadius, self.threshold, self.temperatureUnitSymbol)
         
     def updateRecordingStats(self):
         """
@@ -53,13 +67,126 @@ class GuiController:
         """
         self.recordingDuration = (time.time() - self.recordingStartTime)
         self.recordingDuration = time.strftime("%H:%M:%S", time.gmtime(self.recordingDuration)) 
+
+    def handleKeyPresses(self, keyPress: int, deviceInfo: DeviceInfo):
+        ### BLUR RADIUS
+        if keyPress == ord(KEY_INCREASE_BLUR): # Increase blur radius
+            self.blurRadius += BLUR_RADIUS_INCREMENT
+            self.logger.info("Blur radius increased. New value: %d", self.blurRadius)
+        if keyPress == ord(KEY_DECREASE_BLUR): # Decrease blur radius
+            self.blurRadius -= BLUR_RADIUS_INCREMENT
+            if self.blurRadius <= BLUR_RADIUS_MIN:
+                self.blurRadius = BLUR_RADIUS_MIN
+            
+            self.logger.info("Blur radius decreased. New value: %d", self.blurRadius)
+
+        ### THRESHOLD CONTROL
+        if keyPress == ord(KEY_INCREASE_FLOATING_HIGH_LOW_TEMP_LABEL_THRESHOLD): # Increase threshold
+            self.threshold += THRESHOLD_INCREMENT
+            self.logger.info("Label threshold increased. New value: %d", self.threshold)
+        if keyPress == ord(KEY_DECREASE_FLOATING_HIGH_LOW_TEMP_LABEL_THRESHOLD): # Decrease threshold
+            self.threshold -= THRESHOLD_INCREMENT
+            if self.threshold <= THRESHOLD_MIN:
+                self.threshold = THRESHOLD_MIN
+
+            self.logger.info("Label threshold decreased. New value: %d", self.threshold)
+
+        ### SCALE CONTROLS
+        if keyPress == ord(KEY_INCREASE_SCALE): # Increase scale
+            self.scale += SCALE_INCREMENT
+            if self.scale >= SCALE_MAX:
+                self.scale = SCALE_MAX
+            self.scaledWidth = deviceInfo.specs.imaging.ir_resolution_width_px*self.scale
+            self.scaledHeight = deviceInfo.specs.imaging.ir_resolution_height_px*self.scale
+            if self.isFullscreen == False:
+                cv2.resizeWindow(self.windowTitle, self.scaledWidth, self.scaledHeight)
+
+            self.logger.info("Scale increased. New value: %d", self.scale)
+        if keyPress == ord(KEY_DECREASE_SCALE): # Decrease scale
+            self.scale -= SCALE_INCREMENT
+            if self.scale <= SCALE_MIN:
+                self.scale = SCALE_MIN
+            self.scaledWidth = deviceInfo.specs.imaging.ir_resolution_width_px*self.scale
+            self.scaledHeight = deviceInfo.specs.imaging.ir_resolution_height_px*self.scale
+            if self.isFullscreen == False:
+                cv2.resizeWindow(self.windowTitle, self.scaledWidth,self.scaledHeight)
+
+            self.logger.info("Scale decreased. New value: %d", self.scale)
+
+        ### FULLSCREEN CONTROLS
+        if keyPress == ord(KEY_FULLSCREEN): # Enable fullscreen
+            self.isFullscreen = DEFAULT_FULLSCREEN
+            cv2.namedWindow(self.windowTitle, cv2.WND_PROP_FULLSCREEN)
+            cv2.setWindowProperty(self.windowTitle, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            
+            self.logger.info("Fullscreen mode enabled.")
+        if keyPress == ord(KEY_WINDOWED): # Disable fullscreen
+            self.isFullscreen = not DEFAULT_FULLSCREEN
+            cv2.namedWindow(self.windowTitle, cv2.WINDOW_GUI_NORMAL)
+            cv2.setWindowProperty(self.windowTitle, cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_GUI_NORMAL)
+            cv2.resizeWindow(self.windowTitle, self.scaledWidth, self.scaledHeight)
+
+            self.logger.info("Windowed mode enabled.")
+
+        ### CONTRAST CONTROLS
+        if keyPress == ord(KEY_INCREASE_CONTRAST): # Increase contrast
+            self.contrast += CONTRAST_INCREMENT
+            self.contrast = round(self.contrast, 1) #fix round error
+            if self.contrast >= CONTRAST_MAX:
+                self.contrast = CONTRAST_MAX
+
+            self.logger.info("Contrast increased. New value: %.1f", self.contrast)
+        if keyPress == ord(KEY_DECREASE_CONTRAST): # Decrease contrast
+            self.contrast -= CONTRAST_INCREMENT
+            self.contrast = round(self.contrast,1)#fix round error
+            if self.contrast <= CONTRAST_MIN:
+                self.contrast = CONTRAST_MIN
+            
+            self.logger.info("Contrast decreased. New value: %.1f", self.contrast)
+
+        ### HUD CONTROLS
+        if keyPress == ord(KEY_TOGGLE_HUD): # Toggle HUD
+            if self.isHudVisible == True:
+                self.isHudVisible = not DEFAULT_HUD_VISIBLE
+            elif self.isHudVisible == False:
+                self.isHudVisible = DEFAULT_HUD_VISIBLE
+
+            self.logger.info("HUD visibility toggled. New state: %s", self.isHudVisible)
+
+        ### COLOR MAPS
+        if keyPress == ord(KEY_CYCLE_THROUGH_COLORMAPS): # Cycle through color maps
+            if self.colormap.value + 1 > Colormap.INV_RAINBOW.value:
+                self.colormap = Colormap.NONE
+            else:
+                self.colormap = Colormap(self.colormap.value + 1)
+            self.logger.info("Colormap changed to %s", self.colormap.name)
+        if keyPress == ord(KEY_INVERT): # Cycle through color maps
+            self.logger.info("Inverting colors. Previous state: %s", self.isInverted)
+            self.isInverted = not self.isInverted
         
-    def drawGUI(self, imdata, temp, averageTemp, maxTemp, minTemp, labelThreshold, isRecording, mrow, mcol, lrow, lcol):
+        if keyPress == ord(KEY_TOGGLE_OUTPUT_MODE): # Toggle between processed and raw thermal output
+            self.logger.info("Toggling output mode. Previous state: %s", self.reverseOutput)
+            self.reverseOutput = not self.reverseOutput
+        
+        if keyPress == ord(KEY_TOGGLE_PIP): # Toggle PiP window visibility
+            self.logger.info("Toggling PiP window visibility. Previous state: %s", self.showPiP)
+            self.showPiP = not self.showPiP
+        
+    def drawGUI(self, imdata, thdata, temp, averageTemp, maxTemp, minTemp, labelThreshold, isRecording, mrow, mcol, lrow, lcol):
         """
         Draws the GUI elements on the thermal image.
         """
+        # Swap data sources if reverseOutput is enabled
+        # This helps if the camera backend is showing the wrong half of the frame
+        if self.reverseOutput:
+            display_data = thdata
+            pip_data = imdata
+        else:
+            display_data = imdata
+            pip_data = thdata
+        
         # Apply affects
-        img = self.applyEffects(imdata=imdata)
+        img = self.applyEffects(imdata=display_data)
         
         # Apply inversion
         if self.isInverted == True:
@@ -89,6 +216,10 @@ class GuiController:
         # Update recording stats
         if isRecording == True:
             self.updateRecordingStats()
+        
+        # Show PiP with the alternate data source for comparison if enabled
+        if self.showPiP:
+            img = self._overlayRawThermalData(img, pip_data, self.reverseOutput)
 
         return img
 
@@ -389,4 +520,77 @@ class GuiController:
         if self.blurRadius > 0:
             img = cv2.blur(img,(self.blurRadius, self.blurRadius))
 
+        return img
+    
+    def _overlayRawThermalData(self, img, thdata, is_swapped):
+        """
+        Overlays the alternate data source as a picture-in-picture window on the main image.
+        This shows what the camera is actually sending alongside the processed view.
+        When swapped, shows the normal view in PiP while thermal data is the main display.
+
+        TODO: clean this up
+        """
+        if thdata is None or thdata.size == 0:
+            return img
+        
+        # Calculate PiP window size (roughly 1/3 of the main image)
+        pip_width = self.scaledWidth // 3
+        pip_height = self.scaledHeight // 3
+        
+        # Position in bottom-right corner with some padding
+        x_offset = self.scaledWidth - pip_width - 10
+        y_offset = self.scaledHeight - pip_height - 10
+        
+        # Try to display as YUY2 (convert from raw bytes)
+        try:
+            # Treat the 2-channel thermal data as YUYV packed format
+            thermal_yuyv = thdata.astype(np.uint8)
+            # Convert YUY2 to BGR for display (this will show the raw colors)
+            thermal_bgr = cv2.cvtColor(thermal_yuyv, cv2.COLOR_YUV2BGR_YUYV)
+        except cv2.error:
+            # Fallback: stack the channels to see the raw data
+            if thdata.ndim == 2:
+                thermal_bgr = cv2.cvtColor(thdata.astype(np.uint8), cv2.COLOR_GRAY2BGR)
+            else:
+                thermal_bgr = thdata.astype(np.uint8)
+                if thermal_bgr.shape[2] == 1:
+                    thermal_bgr = cv2.cvtColor(thermal_bgr, cv2.COLOR_GRAY2BGR)
+        
+        # Resize to PiP dimensions
+        pip_img = cv2.resize(thermal_bgr, (pip_width, pip_height), interpolation=cv2.INTER_CUBIC)
+        
+        # Apply contrast
+        pip_img = cv2.convertScaleAbs(pip_img, alpha=self.contrast)
+        
+        # Draw border around PiP
+        cv2.rectangle(img, (x_offset - 2, y_offset - 2), 
+                     (x_offset + pip_width + 2, y_offset + pip_height + 2), 
+                     (255, 255, 255), 2)
+        
+        # Label changes based on whether we're swapped or not
+        label = 'NORMAL VIEW' if is_swapped else 'THERMAL DATA'
+        
+        # Add label above PiP
+        cv2.putText(
+            img,
+            label,
+            (x_offset, y_offset - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (0, 0, 0),
+            2,
+            cv2.LINE_AA)
+        cv2.putText(
+            img,
+            label,
+            (x_offset, y_offset - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (0, 255, 255),
+            1,
+            cv2.LINE_AA)
+        
+        # Overlay the PiP onto the main image
+        img[y_offset:y_offset + pip_height, x_offset:x_offset + pip_width] = pip_img
+        
         return img

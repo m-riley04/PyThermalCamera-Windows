@@ -1,5 +1,6 @@
 from cv2 import FONT_HERSHEY_SIMPLEX
-from enums.ColormapEnum import Colormap
+from src.enums.TemperatureUnitEnum import TemperatureUnit
+from src.enums.ColormapEnum import Colormap
 
 ### GUI CONSTANTS
 WINDOW_TITLE: str = "Thermal Camera"
@@ -10,6 +11,7 @@ DEFAULT_RECORDING_START_TIME: float = 0
 DEFAULT_RECORDING_DURATION: str = "00:00:00"
 DEFAULT_FONT: int = FONT_HERSHEY_SIMPLEX
 DEFAULT_TEMPERATURE_UNIT_SYMBOL: str = "C"
+DEFAULT_TEMPERATURE_UNIT: TemperatureUnit = TemperatureUnit.CELSIUS
 
 # Scale
 DEFAULT_SCALE: int = 3

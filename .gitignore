@@ -1,6 +1,25 @@
+# python environment ignores
 __pycache__/
 *.pyc
-output/
 .venv/
 venv/
+
+# logging
+logs/
+log_*.log
+*.log
+
+# app output
+output/
+
+# test files from development
 TS001.py
+TC001.py
+
+# building
+build/
+dist/
+
+# misc
+.env
+.env.*

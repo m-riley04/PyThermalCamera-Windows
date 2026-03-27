@@ -1,0 +1,128 @@
+{
+    "id": "TC001raw",
+    "name": "TOPDON TC001 Thermal Camera (raw)",
+    "description": "The TC001 camera, but uses raw readings instead of normalizing. This is for a specific fix on some TC001 units.",
+    "manufacturer": "TOPDON",
+    "model": "TC001",
+    "specifications": {
+        "hardware": {
+            "system": null,
+            "operating_system": "Android/Windows",
+            "battery_capacity": null,
+            "display_screen": null,
+            "voltage_v": 5,
+            "charging_time": null,
+            "battery_life": null,
+            "storage": null,
+            "led_flashlight": false,
+            "power_consumption_w": 0.35
+        },
+        "imaging": {
+            "calib_temp_min_m": 0.2,
+            "calib_temp_max_m": 5.0,
+            "id_min_m": 0.1,
+            "id_max_m": 50,
+            "recog_min_m": 50,
+            "recog_max_m": 80,
+            "detect_min_m": 80,
+            "detect_max_m": 320,
+            "measurement_accuracy_c": 2,
+            "ir_resolution_width_px": 256,
+            "ir_resolution_height_px": 192,
+            "focal_length_mm": 3.2,
+            "fov_h_deg": 56,
+            "fov_v_deg": 42,
+            "spectral_range_min_um": 8,
+            "spectral_range_max_um": 14,
+            "netd_mk": 40,
+            "temperature_resolution_c": 0.1,
+            "frame_rate_hz": 25
+        },
+        "functions": {
+            "measurement_range_min_c": -20,
+            "measurement_range_max_c": 550,
+            "professional_function": "Home",
+            "digital_zoom": false,
+            "image_modes": ["Thermal Imaging", "Dual Fusion"],
+            "measuring_modes": ["Dot", "Line", "Plane"],
+            "video_recording": true,
+            "video_transfer_via_usb": true,
+            "wifi": false,
+            "pc_analysis_software": true,
+            "visible_light_camera": false,
+            "pseudo_color_palettes": [
+                "Iron Red",
+                "White Hot",
+                "Black Hot",
+                "Arctic",
+                "Rainbow",
+                "Red Hot",
+                "Medical",
+                "Jungle",
+                "Golden Red",
+                "Shimmer",
+                "Aureate"
+            ],
+            "pseudo_color_palette_count": 11,
+            "custom_color_palette": true,
+            "high_low_temp_alarms": true,
+            "auto_power_off": false,
+            "temperature_units": ["Celsius", "Fahrenheit"]
+        },
+        "other": {
+            "operating_temp_min_c": -10,
+            "operating_temp_max_c": 50,
+            "tripod_screw_hole": false,
+            "drop_test_height_m": 2.0,
+            "ip_rating": null,
+            "certifications": ["UN38.3", "DGM", "CE", "FCC", "RoHS", "UKCA"],
+            "gross_weight_g": 220,
+            "device_weight_g": 30,
+            "package_size_l_mm": 140,
+            "package_size_w_mm": 102,
+            "package_size_h_mm": 46,
+            "languages_supported_count": 13,
+            "languages_supported": [
+                "English", "Chinese", "Japanese", "French", "Spanish",
+                "Italian", "Portuguese", "German", "Polish", "Russian",
+                "Dutch", "Czech", "Ukrainian"
+            ]
+        }
+    },
+    "features": [
+        "256x192 ultra-high IR resolution",
+        "USB-C plug-and-play for Android and Windows",
+        "Wide temperature range: -20°C to 550°C",
+        "±2°C or ±2% measurement accuracy",
+        "0.1°C temperature resolution",
+        "11 pseudo color palettes with custom mode",
+        "Waveform graph for continuous temperature monitoring",
+        "Low power consumption (0.35W)",
+        "Dual Fusion image mode",
+        "Dot, line, and plane measuring modes",
+        "High/low temperature warning alarms",
+        "DIY temperature range with custom color limits",
+        "Image enhancement with sharpness and contrast adjustment",
+        "Picture-in-picture",
+        "No registration required for basic temperature reading"
+    ],
+    "in_the_box": [
+        "TC001 Thermal Camera",
+        "Carrying Bag",
+        "50cm Multifunctional Adapter Cable",
+        "Cleaning Cloth",
+        "User Manual"
+    ],
+    "misc": {
+        "thermal_byte_order": "LSB_BYTE_0",
+        "normalization_offset": 53.0,
+        "normalization_divisor": 64.0,
+        "reverse_output": true
+    },
+    "pricing": {
+        "regular_price_usd": 289.00,
+        "sale_price_usd": 230.00,
+        "pricing_date_ymd": "2026-03-13"
+    },
+    "warranty_years": 1
+}

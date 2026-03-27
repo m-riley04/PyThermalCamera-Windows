@@ -1,5 +1,5 @@
-from defaults.values import DEFAULT_TEMPERATURE_SIG_DIGITS
-from enums.TemperatureUnitEnum import TemperatureUnit
+from src.defaults.values import DEFAULT_NORMALIZATION_OFFSET, DEFAULT_TEMPERATURE_SIG_DIGITS
+from src.enums.TemperatureUnitEnum import TemperatureUnit
 
 # NOTE: most of these conversions are from celsius to x. This is because the data is stored as celsius.
 
@@ -17,12 +17,12 @@ def celsiusDeltaToFahrenheitDelta(temperatureDelta: float) -> float:
     """
     return temperatureDelta * 9.0 / 5.0
 
-def celsiusToKelvin(temperature: float) -> float:
+def celsiusToKelvin(temperature: float, offset: float = DEFAULT_NORMALIZATION_OFFSET) -> float:
     """
     Converts a temperature in Celsius to Kelvin.
     Formula: °C + 273.15 = K
     """
-    return temperature + 273.15
+    return temperature + offset
 
 def convertTemperatureForDisplay(temperatureCelsius: float, temperatureUnit: TemperatureUnit) -> float:
     """
