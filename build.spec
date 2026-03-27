@@ -27,7 +27,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='main',
+    name='ptc',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -48,7 +48,7 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='main',
+    name='pythermalcamera',
 )
 
 # Move files
